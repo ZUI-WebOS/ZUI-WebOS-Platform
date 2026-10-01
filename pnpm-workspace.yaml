@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - packages/*
+  - services/*
+
+allowBuilds:
+  esbuild: true
+
+catalog:
+  "@types/node": ^24.5.2
+  typescript: ^5.9.2

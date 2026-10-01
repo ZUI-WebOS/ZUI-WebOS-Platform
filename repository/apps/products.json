@@ -1,0 +1,26 @@
+{
+  "$schema": "../schemas/product-registry.schema.json",
+  "schemaVersion": 1,
+  "products": [
+    {
+      "id": "zui-iptv-player",
+      "displayName": "ZUI IPTV Player",
+      "repository": "https://github.com/ZUI-WebOS/ZUI-IPTV-Player",
+      "appIds": ["com.zui.player"],
+      "deploymentModel": "developer-mode-ipk",
+      "releaseSource": "github-releases",
+      "rootlessCompatible": true,
+      "sourceModel": "external-product-repository"
+    },
+    {
+      "id": "zui-youtube-webos",
+      "displayName": "ZUI YouTube for webOS",
+      "repository": "https://github.com/ZUI-WebOS/ZUI-YouTube-WebOS",
+      "appIds": ["youtube.leanback.v4", "com.zui.webos.youtube.staging"],
+      "deploymentModel": "developer-mode-ipk",
+      "releaseSource": "github-releases",
+      "rootlessCompatible": true,
+      "sourceModel": "external-product-repository"
+    }
+  ]
+}

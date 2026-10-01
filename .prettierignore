@@ -1,0 +1,6 @@
+.migration-rehearsal/
+docs/github/
+docs/migration/
+node_modules/
+dist/
+coverage/
