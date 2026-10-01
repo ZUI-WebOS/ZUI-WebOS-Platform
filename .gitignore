@@ -1,0 +1,48 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+workspace.local.*
+config.local.json
+
+# Dependencies and caches
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+.turbo/
+.nx/
+.cache/
+
+# Build and test output
+dist/
+build/
+coverage/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.migration-rehearsal/
+
+# webOS packages and device output
+*.ipk
+dist-ipk*/
+artifacts/
+captures/
+screenshots/
+diagnostics/
+
+# Local Developer Mode state
+.devmode-keeper/
+
+# Logs and OS/editor state
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.user
+*.suo
