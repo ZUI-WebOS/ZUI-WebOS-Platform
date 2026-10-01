@@ -13,7 +13,7 @@
     "build": "pnpm -r --if-present build",
     "type-check": "pnpm -r --if-present type-check",
     "test": "pnpm build && vitest run",
-    "lint": "eslint apps packages tests",
+    "lint": "pnpm build && eslint apps packages tests",
     "format:check": "prettier --check \"apps/**/*.ts\" \"packages/**/*.ts\" \"tests/**/*.ts\" \"*.{json,yaml,yml}\" \".github/**/*.{yaml,yml}\"",
     "verify": "pnpm format:check && pnpm lint && pnpm type-check && pnpm test && pnpm build",
     "zui-webos": "pnpm --filter @zui-webos/devmode-keeper start"
