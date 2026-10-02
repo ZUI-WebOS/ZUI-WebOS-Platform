@@ -10,10 +10,14 @@ Build with `pnpm build`, then use `pnpm zui-webos -- <command>`. Add `--json` fo
 | `apps inspect --device tv --app <id>` | Reports installed state, public metadata, and registry classification. |
 | `package inspect <file.ipk>` | Reads archive metadata, manifests, hash, and registry matches. |
 | `package verify <file.ipk>` | Performs the same deterministic structural validation and explicitly reports that authenticity is not verified. |
-| `install plan <file.ipk> --device tv` | Creates a non-executable comparison and risk plan. Never installs. |
+| `release list` | Validates and lists local product release records. |
+| `release inspect <artifact-id>` | Displays one pinned artifact record. |
+| `install plan <file.ipk> --device tv --save <plan.json>` | Creates a canonical expiring plan without overwriting an existing file. |
+| `install execute <plan.json> --approve <digest>` | Executes only an exact, current, pinned staging plan through InstallerService. |
+| `install receipts` | Lists local receipt files outside Git. |
 | `doctor [--device tv]` | Checks runtime, public CLI/device registry, product registry, and inspection support. TV connectivity is checked only when `--device` is explicit. |
 
 `devmode status`, `devmode extend`, and `devmode ensure` retain their existing behavior. Use `--dry-run` for extension planning.
 
-Package command success is exit code 0. Invalid input and safety-limit failures return deterministic structured error codes. Installation planning may contain `BLOCK` risks but remains a successful read-only report because it never executes the proposed command.
+Package command success is exit code 0. Invalid input and safety-limit failures return deterministic structured error codes. Production plans always remain blocked. There is no `--yes`, `--force`, production override, uninstall, or storage-clear command.
 

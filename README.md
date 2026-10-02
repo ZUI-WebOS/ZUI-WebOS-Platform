@@ -77,7 +77,14 @@ Add `--json` for machine-readable results. Configuration precedence is CLI argum
 
 The public webOS CLI does not expose the resulting Developer Mode expiry timestamp. Keeper therefore reports command acceptance and post-command connectivity separately from `expiryVerified`; it never invents an expiry or claims that unknown state is measured.
 
-Package inspection and installation planning never install an IPK. A plan displays risks and a proposed command for review, but is deliberately non-executable. No scheduler or background service is installed by default.
+Package inspection never executes an IPK. Installation Plan V2 is canonical, expiring, and approval-bound. Only a repository-pinned staging artifact can become executable, and execution requires its exact digest:
+
+```powershell
+pnpm zui-webos -- install plan C:\path\to\staging.ipk --device tv --save C:\path\to\plan.json
+pnpm zui-webos -- install execute C:\path\to\plan.json --approve <exact-plan-digest>
+```
+
+Production app IDs are hard-blocked with no override. No scheduler or background service is installed by default.
 
 ## Safety model
 
@@ -88,7 +95,7 @@ Package inspection and installation planning never install an IPK. A plan displa
 - Logs redact connection addresses and credential-like values.
 - Package installation, uninstallation, storage reset, rooting, privilege escalation, and firmware mutation are outside DevMode Keeper.
 
-See [Threat Model](docs/security/THREAT_MODEL.md), [Package Security](docs/security/PACKAGE_SECURITY.md), [Device Manager](docs/architecture/DEVICE_MANAGER.md), [Package Inspector](docs/architecture/PACKAGE_INSPECTOR.md), and [Installation Planner](docs/architecture/INSTALLATION_PLANNER.md).
+See [Threat Model](docs/security/THREAT_MODEL.md), [Package Security](docs/security/PACKAGE_SECURITY.md), [Release Metadata](docs/architecture/RELEASE_METADATA.md), [Approval-Gated Installer](docs/architecture/APPROVAL_GATED_INSTALLER.md), [Device Manager](docs/architecture/DEVICE_MANAGER.md), [Package Inspector](docs/architecture/PACKAGE_INSPECTOR.md), and [Installation Planner](docs/architecture/INSTALLATION_PLANNER.md).
 
 ## Roadmap
 

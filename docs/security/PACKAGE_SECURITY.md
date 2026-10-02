@@ -13,5 +13,7 @@ Default bounds are 512 MiB per IPK, 20,000 archive entries, 64 MiB per member/en
 - A calculated hash identifies bytes but does not establish a trusted source.
 - A hash comparison establishes provenance only when the expected hash arrived through a separately trusted channel.
 
-Consequently every plan includes `UNKNOWN_PACKAGE_PROVENANCE` until a future signed or otherwise trusted artifact registry is introduced.
+Matching repository-pinned release metadata raises trust to `REPOSITORY_PINNED_HASH`; it still does not prove authorship. Mismatch, missing metadata, production identity, and unknown provenance are execution blocks.
+
+Before installation, the service rehashes and reparses the artifact and compares device inventory with the approved plan. File size, mtime, or path alone is never trusted. Semantic plan edits invalidate its canonical digest, expired/used plans are rejected, and approval cannot be reused for another artifact or device.
 

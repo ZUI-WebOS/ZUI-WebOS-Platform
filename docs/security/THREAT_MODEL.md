@@ -27,6 +27,21 @@ The platform is rootless and Developer Mode only. It does not patch firmware, mo
 | False renewal claim | extension acceptance and expiry verification are separate fields; unknown expiry remains unknown |
 | Runaway process | per-command timeout and deterministic timeout error |
 
+## Approval-gated installation extension
+
+| Threat | Control |
+|---|---|
+| Malicious plan modification or path/device substitution | Deterministic canonical JSON digest plus exact approval equality. |
+| Approval replay | Expiry and existing-receipt digest check. |
+| Stale plan/device state | Target and protected-production inventory re-read before mutation. |
+| Artifact replacement after approval | Full streaming SHA-256 and manifest reparse immediately before install. |
+| Malicious local path/package | Canonical normal-file path and bounded hostile-archive parser. |
+| Package/dependency spoofing | Repository-pinned hash/size/identity required for staging execution. |
+| Compromised registry metadata | Pinned metadata is not signing; protected main and review reduce but cannot eliminate this risk. |
+| Incorrect device targeting | Alias is part of the digest and returned inventory must match it. |
+| Production overwrite | InstallerService independently permits staging only and hard-blocks both production IDs. |
+| Secret exposure in logs/receipts | Sanitized output and a minimal receipt contract without credentials. |
+
 ## Trust assumptions
 
 The locally installed LG webOS CLI and the device registry are trusted user-managed dependencies. A registered alias does not prove reachability. A successful extension launch marker plus a separate post-command connectivity check proves command-level acceptance, not the exact resulting expiry.
