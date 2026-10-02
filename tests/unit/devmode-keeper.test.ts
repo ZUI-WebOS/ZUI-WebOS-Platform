@@ -8,6 +8,7 @@ import type {
 import {
   NodeProcessRunner,
   PlatformError,
+  parseInstalledApplications,
   validateDeviceAlias,
   WebOSCliAdapter,
 } from "@zui-webos/webos-client";
@@ -70,6 +71,27 @@ function serviceClient(
     async status() {
       return status;
     },
+    async inspectDevice() {
+      return {
+        alias,
+        isDefault: true,
+        profile: "tv",
+        connectionStatus: "reachable",
+        health: { connectionStatus: "reachable", checkedAt: status.observedAt },
+        capabilities: ["connectivity", "installed-application-inventory"],
+      };
+    },
+    async listInstalledApplications() {
+      return {
+        device: alias,
+        timestamp: status.observedAt,
+        source: "ares-install-listfull",
+        applications: [],
+      };
+    },
+    async inspectInstalledApplication() {
+      return null;
+    },
     async extendDeveloperMode() {
       return extension;
     },
@@ -102,6 +124,34 @@ describe("CLI argument parsing", () => {
 });
 
 describe("webOS CLI adapter", () => {
+  it("parses the real listfull block format", () => {
+    const applications = parseInstalledApplications(
+      "id : com.zui.player\n" +
+        "title : ZUI\n" +
+        "version : 1.0.1\n" +
+        "vendor : ZUI\n\n" +
+        "id : com.zui.webos.youtube.staging\n" +
+        "title : ZUI YouTube STAGING\n" +
+        "version : 0.8.4\n",
+    );
+    expect(applications).toMatchObject([
+      {
+        id: "com.zui.player",
+        version: "1.0.1",
+        source: "ares-install-listfull",
+      },
+      { id: "com.zui.webos.youtube.staging", version: "0.8.4" },
+    ]);
+  });
+
+  it("rejects malformed listfull blocks without an app id", () => {
+    expect(() =>
+      parseInstalledApplications("title : orphan\nversion : 1.0.0\n"),
+    ).toThrowError(
+      expect.objectContaining({ code: "MALFORMED_APP_INVENTORY" }),
+    );
+  });
+
   it("constructs the extension command as argv without a shell", async () => {
     const list = commandResult({
       executable: "ares-setup-device",

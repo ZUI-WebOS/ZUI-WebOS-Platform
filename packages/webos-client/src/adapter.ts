@@ -2,6 +2,11 @@ import type {
   CommandResult,
   DeveloperModeStatus,
   DeviceAlias,
+  InstalledApplication,
+  InstalledApplicationId,
+  ApplicationVersion,
+  InventorySnapshot,
+  ManagedDevice,
   WebOSDevice,
 } from "@zui-webos/shared-types";
 
@@ -12,6 +17,7 @@ import type { ProcessRunner } from "./process-runner.js";
 export interface WebOSCliExecutables {
   readonly setupDevice: string;
   readonly launch: string;
+  readonly install: string;
 }
 
 export interface WebOSCliAdapterOptions {
@@ -24,6 +30,7 @@ export interface WebOSCliAdapterOptions {
 const DEFAULT_EXECUTABLES: WebOSCliExecutables = {
   setupDevice: "ares-setup-device",
   launch: "ares-launch",
+  install: "ares-install",
 };
 
 interface ResolvedCommand {
@@ -106,11 +113,51 @@ function parseDeviceLines(stdout: string): WebOSDevice[] {
   return devices;
 }
 
+function parseInstalledApplications(stdout: string): InstalledApplication[] {
+  const clean = stdout
+    .split(/\r?\n/u)
+    .filter((line) => !line.startsWith("[Info]"));
+  const blocks = clean.join("\n").split(/\n\s*\n/u);
+  const applications: InstalledApplication[] = [];
+
+  for (const block of blocks) {
+    if (block.trim().length === 0) continue;
+    const metadata: Record<string, string> = {};
+    for (const line of block.split("\n")) {
+      const separator = line.indexOf(" : ");
+      if (separator <= 0) continue;
+      const key = line.slice(0, separator).trim();
+      const value = line.slice(separator + 3).trim();
+      if (key.length > 0 && !key.startsWith("-")) metadata[key] = value;
+    }
+    const id = metadata.id;
+    if (id === undefined || id.length === 0) {
+      throw new PlatformError(
+        "MALFORMED_APP_INVENTORY",
+        "Installed application inventory contained a block without an app ID.",
+      );
+    }
+    applications.push({
+      id: id as InstalledApplicationId,
+      ...(metadata.title ? { title: metadata.title } : {}),
+      ...(metadata.version
+        ? { version: metadata.version as ApplicationVersion }
+        : {}),
+      ...(metadata.type ? { type: metadata.type } : {}),
+      ...(metadata.vendor ? { vendor: metadata.vendor } : {}),
+      source: "ares-install-listfull",
+      metadata,
+    });
+  }
+  return applications;
+}
+
 export class WebOSCliAdapter {
   private readonly runner: ProcessRunner;
   private readonly timeoutMs: number;
   private readonly setupDeviceCommand: ResolvedCommand;
   private readonly launchCommand: ResolvedCommand;
+  private readonly installCommand: ResolvedCommand;
   private readonly now: () => Date;
 
   constructor(options: WebOSCliAdapterOptions) {
@@ -130,6 +177,13 @@ export class WebOSCliAdapter {
           prefixArgs: [],
         }
       : resolveDefaultCommand(DEFAULT_EXECUTABLES.launch);
+    this.installCommand = options.executables?.install
+      ? {
+          logicalName: options.executables.install,
+          executable: options.executables.install,
+          prefixArgs: [],
+        }
+      : resolveDefaultCommand(DEFAULT_EXECUTABLES.install);
     this.now = options.now ?? (() => new Date());
   }
 
@@ -192,6 +246,56 @@ export class WebOSCliAdapter {
     };
   }
 
+  async inspectDevice(alias: DeviceAlias): Promise<ManagedDevice> {
+    const device = await this.requireDevice(alias);
+    const status = await this.status(alias);
+    return {
+      ...device,
+      connectionStatus: status.connectionStatus,
+      health: {
+        connectionStatus: status.connectionStatus,
+        checkedAt: status.observedAt,
+      },
+      capabilities: [
+        "connectivity",
+        "installed-application-inventory",
+        "developer-mode-extension",
+      ],
+    };
+  }
+
+  async listInstalledApplications(
+    alias: DeviceAlias,
+  ): Promise<InventorySnapshot> {
+    await this.status(alias);
+    const result = await this.runCli(this.installCommand, [
+      "--listfull",
+      "--device",
+      alias,
+    ]);
+    if (result.exitCode !== 0) {
+      throw new PlatformError(
+        "DEVICE_INVENTORY_FAILED",
+        `Unable to read installed applications from '${alias}'.`,
+      );
+    }
+    const applications = parseInstalledApplications(result.stdout);
+    return {
+      device: alias,
+      timestamp: this.now().toISOString(),
+      source: "ares-install-listfull",
+      applications,
+    };
+  }
+
+  async inspectInstalledApplication(
+    alias: DeviceAlias,
+    appId: string,
+  ): Promise<InstalledApplication | null> {
+    const snapshot = await this.listInstalledApplications(alias);
+    return snapshot.applications.find((app) => app.id === appId) ?? null;
+  }
+
   async extendDeveloperMode(alias: DeviceAlias): Promise<CommandResult> {
     await this.requireDevice(alias);
     return this.runCli(this.launchCommand, [
@@ -241,6 +345,6 @@ export class WebOSCliAdapter {
   }
 }
 
-export { parseDeviceLines };
+export { parseDeviceLines, parseInstalledApplications };
 import { existsSync } from "node:fs";
 import { delimiter, join } from "node:path";

@@ -2,6 +2,9 @@ import type {
   DeveloperModeStatus,
   DeviceAlias,
   ExtensionResult,
+  InstalledApplication,
+  InventorySnapshot,
+  ManagedDevice,
   WebOSDevice,
 } from "@zui-webos/shared-types";
 import type { CommandResult } from "@zui-webos/shared-types";
@@ -14,6 +17,12 @@ export interface ExtendOptions {
 export interface WebOSClient {
   listDevices(): Promise<WebOSDevice[]>;
   status(device: DeviceAlias): Promise<DeveloperModeStatus>;
+  inspectDevice(device: DeviceAlias): Promise<ManagedDevice>;
+  listInstalledApplications(device: DeviceAlias): Promise<InventorySnapshot>;
+  inspectInstalledApplication(
+    device: DeviceAlias,
+    appId: string,
+  ): Promise<InstalledApplication | null>;
   extendDeveloperMode(device: DeviceAlias): Promise<CommandResult>;
   isAcceptedExtension(result: CommandResult): boolean;
 }
@@ -27,6 +36,21 @@ export class DevModeKeeperService {
 
   status(device: DeviceAlias): Promise<DeveloperModeStatus> {
     return this.adapter.status(device);
+  }
+
+  inspectDevice(device: DeviceAlias): Promise<ManagedDevice> {
+    return this.adapter.inspectDevice(device);
+  }
+
+  listInstalledApplications(device: DeviceAlias): Promise<InventorySnapshot> {
+    return this.adapter.listInstalledApplications(device);
+  }
+
+  inspectInstalledApplication(
+    device: DeviceAlias,
+    appId: string,
+  ): Promise<InstalledApplication | null> {
+    return this.adapter.inspectInstalledApplication(device, appId);
   }
 
   async extend(
