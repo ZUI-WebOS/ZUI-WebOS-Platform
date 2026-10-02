@@ -42,7 +42,17 @@ The signed distribution and verified-cache chain is accepted for staging. It is 
 
 ## 17–18. CI, CodeQL, commits
 
-Local gates pass. Final GitHub CI/CodeQL run URLs and commit SHAs are recorded in the final task response after the normal push; no force push or history rewrite is used.
+Local gates pass. The final implementation head `bae92401951c4fbe5972c11265fb360482519e75` passed [CI run 37059100780](https://github.com/ZUI-WebOS/ZUI-WebOS-Platform/actions/runs/37059100780) and [CodeQL run 37059100752](https://github.com/ZUI-WebOS/ZUI-WebOS-Platform/actions/runs/37059100752).
+
+Implementation commits:
+
+1. `3ef4ded` — signed release trust contracts
+2. `dc010d1` — trusted artifact distribution cache
+3. `be95707` — installer-planning integration
+4. `a46f30f` — crypto/distribution/policy tests
+5. `bae9240` — architecture, security, operations, CLI, and acceptance documentation
+
+All pushes were normal non-force updates; no history rewrite occurred. A later report-only closeout commit does not change the validated implementation files.
 
 ## 19. Remaining risks
 
