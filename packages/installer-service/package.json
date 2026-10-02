@@ -1,27 +1,17 @@
 {
-  "name": "@zui-webos/devmode-keeper",
+  "name": "@zui-webos/installer-service",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "license": "MIT",
-  "bin": {
-    "zui-webos": "./dist/cli.js"
-  },
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "type-check": "tsc -p tsconfig.json",
-    "start": "node dist/cli.js"
-  },
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": { "build": "tsc -p tsconfig.json", "type-check": "tsc -p tsconfig.json" },
   "dependencies": {
     "@zui-webos/catalog-contracts": "workspace:*",
     "@zui-webos/installation-planner": "workspace:*",
-    "@zui-webos/installer-service": "workspace:*",
     "@zui-webos/package-inspector": "workspace:*",
     "@zui-webos/shared-types": "workspace:*",
     "@zui-webos/webos-client": "workspace:*"
   },
-  "devDependencies": {
-    "@types/node": "catalog:",
-    "typescript": "catalog:"
-  }
+  "devDependencies": { "@types/node": "catalog:", "typescript": "catalog:" }
 }

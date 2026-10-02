@@ -1,14 +1,25 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
   matchProduct,
+  validateReleaseRecords,
   validateRegistry,
+  verifyArtifactMetadata,
+  type ProductRelease,
   type ProductRegistry,
   type RegistryMatch,
 } from "@zui-webos/catalog-contracts";
-import { createInstallationPlan } from "@zui-webos/installation-planner";
+import {
+  createInstallationPlan,
+  isInstallationPlanV2,
+} from "@zui-webos/installation-planner";
+import {
+  FileReceiptStore,
+  InstallerService,
+} from "@zui-webos/installer-service";
 import {
   inspectIpk,
   type PackageInspection,
@@ -28,6 +39,9 @@ interface ParsedArguments {
   readonly json: boolean;
   readonly dryRun: boolean;
   readonly app?: string;
+  readonly save?: string;
+  readonly approve?: string;
+  readonly planTtlMinutes?: number;
   readonly overrides: ConfigOverrides;
 }
 
@@ -40,7 +54,11 @@ Usage:
   zui-webos apps inspect --device <alias> --app <app-id> [--json]
   zui-webos package inspect <path.ipk> [--json]
   zui-webos package verify <path.ipk> [--json]
-  zui-webos install plan <path.ipk> --device <alias> [--json]
+  zui-webos install plan <path.ipk> --device <alias> [--save <plan.json>] [--plan-ttl-minutes <1-30>] [--json]
+  zui-webos install execute <plan.json> --approve <plan-digest> [--json]
+  zui-webos install receipts [--json]
+  zui-webos release list [--json]
+  zui-webos release inspect <artifact-id> [--json]
   zui-webos devmode status [--device <alias>] [--json]
   zui-webos devmode extend [--device <alias>] [--dry-run] [--json]
   zui-webos devmode ensure [--device <alias>] [--dry-run] [--json]
@@ -67,6 +85,9 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
   let json = false;
   let dryRun = false;
   let app: string | undefined;
+  let save: string | undefined;
+  let approve: string | undefined;
+  let planTtlMinutes: number | undefined;
   let device: string | undefined;
   let timeoutMs: number | undefined;
   let thresholdHours: number | undefined;
@@ -89,6 +110,27 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
         break;
       case "--app":
         app = optionValue(args, index, value);
+        index += 1;
+        break;
+      case "--save":
+        save = optionValue(args, index, value);
+        index += 1;
+        break;
+      case "--approve":
+        approve = optionValue(args, index, value);
+        index += 1;
+        break;
+      case "--plan-ttl-minutes":
+        planTtlMinutes = Number(optionValue(args, index, value));
+        if (
+          !Number.isFinite(planTtlMinutes) ||
+          planTtlMinutes < 1 ||
+          planTtlMinutes > 30
+        )
+          throw new PlatformError(
+            "INVALID_ARGUMENT",
+            "--plan-ttl-minutes requires a number.",
+          );
         index += 1;
         break;
       case "--timeout-ms":
@@ -119,12 +161,39 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     json,
     dryRun,
     ...(app === undefined ? {} : { app }),
+    ...(save === undefined ? {} : { save }),
+    ...(approve === undefined ? {} : { approve }),
+    ...(planTtlMinutes === undefined ? {} : { planTtlMinutes }),
     overrides: {
       ...(device === undefined ? {} : { device }),
       ...(timeoutMs === undefined ? {} : { timeoutMs }),
       ...(thresholdHours === undefined ? {} : { thresholdHours }),
     },
   };
+}
+
+async function loadReleaseRecords(
+  registry: ProductRegistry,
+): Promise<ProductRelease[]> {
+  const root = new URL("../../../repository/releases/", import.meta.url);
+  const entries = await readdir(root, { recursive: true, withFileTypes: true });
+  const records: unknown[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    records.push(
+      JSON.parse(
+        await readFile(join(entry.parentPath, entry.name), "utf8"),
+      ) as unknown,
+    );
+  }
+  const validation = validateReleaseRecords(records, registry);
+  if (!validation.valid)
+    throw new PlatformError(
+      "RELEASE_METADATA_INVALID",
+      "Release metadata validation failed.",
+      validation.errors.join("; "),
+    );
+  return records as ProductRelease[];
 }
 
 function validateAppId(value: string | undefined): string {
@@ -199,6 +268,45 @@ async function execute(args: readonly string[]): Promise<number> {
   };
 
   if (
+    commandGroup === "release" &&
+    (commandAction === "list" || commandAction === "inspect")
+  ) {
+    const registry = await loadProductRegistry();
+    const releases = await loadReleaseRecords(registry);
+    if (commandAction === "list") {
+      emit(
+        releases,
+        releases
+          .map(
+            (release) =>
+              `${release.productId} ${release.version} (${release.artifacts.length} artifacts)`,
+          )
+          .join("\n"),
+      );
+      return 0;
+    }
+    const artifactId = parsed.command[2];
+    if (artifactId === undefined)
+      throw new PlatformError(
+        "INVALID_ARGUMENT",
+        "release inspect requires an artifact ID.",
+      );
+    const artifact = releases
+      .flatMap((release) => release.artifacts)
+      .find((item) => item.artifactId === artifactId);
+    if (artifact === undefined)
+      throw new PlatformError(
+        "ARTIFACT_METADATA_INVALID",
+        `Artifact '${artifactId}' was not found.`,
+      );
+    emit(
+      artifact,
+      `${artifact.artifactId}\n${artifact.appId} ${artifact.version}\n${artifact.deploymentClass}\n${artifact.hash.digest}`,
+    );
+    return 0;
+  }
+
+  if (
     commandGroup === "package" &&
     (commandAction === "inspect" || commandAction === "verify")
   ) {
@@ -210,10 +318,23 @@ async function execute(args: readonly string[]): Promise<number> {
     }
     const inspection = await inspectIpk(positionalPath);
     const registry = await loadProductRegistry();
+    const releases = await loadReleaseRecords(registry);
     const registryMatches = inspection.manifests.map((manifest) => ({
       appId: manifest.id,
       ...matchProduct(registry, manifest.id, manifest.vendor),
     }));
+    const manifest =
+      inspection.manifests.length === 1 ? inspection.manifests[0] : undefined;
+    const artifactVerification =
+      manifest === undefined
+        ? null
+        : verifyArtifactMetadata(releases, {
+            filename: inspection.filename,
+            sha256: inspection.hash.digest,
+            size: inspection.size,
+            appId: manifest.id,
+            version: manifest.version,
+          });
     const result =
       commandAction === "verify"
         ? {
@@ -221,8 +342,9 @@ async function execute(args: readonly string[]): Promise<number> {
             authenticityVerified: false,
             inspection,
             registryMatches,
+            artifactVerification,
           }
-        : { inspection, registryMatches };
+        : { inspection, registryMatches, artifactVerification };
     emit(
       result,
       `${commandAction === "verify" ? "Structure and hash verified\n" : ""}${packageSummary(inspection, registryMatches)}`,
@@ -237,36 +359,96 @@ async function execute(args: readonly string[]): Promise<number> {
         "install plan requires one IPK path.",
       );
     }
-    const [inspection, registry, device, inventory] = await Promise.all([
+    const registry = await loadProductRegistry();
+    const releases = await loadReleaseRecords(registry);
+    const [inspection, device, inventory] = await Promise.all([
       inspectIpk(positionalPath),
-      loadProductRegistry(),
       service.inspectDevice(config.device),
       service.listInstalledApplications(config.device),
     ]);
+    const manifest =
+      inspection.manifests.length === 1 ? inspection.manifests[0] : undefined;
+    if (manifest === undefined)
+      throw new PlatformError(
+        "PACKAGE_METADATA_INVALID",
+        "A plan requires exactly one manifest.",
+      );
+    const artifactVerification = verifyArtifactMetadata(releases, {
+      filename: inspection.filename,
+      sha256: inspection.hash.digest,
+      size: inspection.size,
+      appId: manifest.id,
+      version: manifest.version,
+    });
     const plan = createInstallationPlan({
       package: inspection,
       registry,
       inventory,
       connectionStatus: device.health.connectionStatus,
+      artifactVerification,
+      ...(parsed.planTtlMinutes === undefined
+        ? {}
+        : { ttlMs: parsed.planTtlMinutes * 60 * 1000 }),
     });
-    const riskText = plan.risks
+    if (parsed.save !== undefined)
+      await writeFile(parsed.save, `${JSON.stringify(plan, null, 2)}\n`, {
+        encoding: "utf8",
+        flag: "wx",
+      });
+    const riskText = plan.riskFlags
       .map((item) => `${item.severity} ${item.code}`)
       .join(", ");
     emit(
       plan,
       [
         "READ-ONLY installation plan (not executed)",
-        `Device: ${plan.device}`,
-        `Package: ${plan.manifest?.title ?? plan.package.filename} ${plan.comparison.packageVersion ?? "unknown"}`,
-        `App: ${plan.comparison.packageAppId ?? "invalid"}`,
-        `SHA256: ${plan.package.hash.digest}`,
+        `Artifact: ${plan.artifact.title} ${plan.artifact.version}`,
+        `Trust: ${plan.artifact.trustLevel}`,
+        `Device: ${plan.deviceAlias}`,
+        `App: ${plan.artifact.appId}`,
+        `SHA256: ${plan.artifact.sha256}`,
         `Registry: ${plan.comparison.registryMatch.classification}`,
         `Installed: ${plan.comparison.installedApplication === null ? "no" : `yes / ${plan.comparison.installedVersion ?? "unknown"}`}`,
         `Version relation: ${plan.comparison.versionRelation}`,
-        `Would overwrite: ${String(plan.wouldOverwriteExistingApp)}`,
         `Risks: ${riskText}`,
+        `Policy: ${plan.policyDecision}`,
+        `Plan digest: ${plan.planDigest}`,
+        `Executable: ${String(plan.executable)}`,
+        ...(parsed.save === undefined ? [] : [`Saved: ${parsed.save}`]),
       ].join("\n"),
     );
+    return 0;
+  }
+
+  if (commandGroup === "install" && commandAction === "execute") {
+    if (positionalPath === undefined || parsed.approve === undefined)
+      throw new PlatformError(
+        "INVALID_ARGUMENT",
+        "install execute requires a plan path and --approve digest.",
+      );
+    const raw: unknown = JSON.parse(await readFile(positionalPath, "utf8"));
+    if (!isInstallationPlanV2(raw))
+      throw new PlatformError(
+        "PLAN_TAMPERED",
+        "Plan file does not match schema version 2.",
+      );
+    const registry = await loadProductRegistry();
+    const releases = await loadReleaseRecords(registry);
+    const result = await new InstallerService(adapter).execute(
+      raw,
+      parsed.approve,
+      releases,
+    );
+    emit(
+      result,
+      `Install verified\n${result.installedAppId} ${result.installedVersion ?? "unknown"}\nReceipt: ${result.receiptPath}`,
+    );
+    return 0;
+  }
+
+  if (route === "install receipts") {
+    const receipts = await new FileReceiptStore().list();
+    emit({ receipts }, receipts.join("\n"));
     return 0;
   }
 
@@ -351,6 +533,7 @@ async function execute(args: readonly string[]): Promise<number> {
         service.listDevices(),
         loadProductRegistry(),
       ]);
+      const releases = await loadReleaseRecords(registry);
       const status =
         parsed.overrides.device === undefined
           ? null
@@ -363,6 +546,8 @@ async function execute(args: readonly string[]): Promise<number> {
         deviceRegistry: "readable" as const,
         packageInspection: "available" as const,
         productRegistryValid: validateRegistry(registry),
+        releaseMetadataValid: true,
+        releaseCount: releases.length,
         ...(status === null
           ? { deviceCheck: "not-requested" as const }
           : {

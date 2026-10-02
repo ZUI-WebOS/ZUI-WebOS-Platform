@@ -296,6 +296,13 @@ export class WebOSCliAdapter {
     return snapshot.applications.find((app) => app.id === appId) ?? null;
   }
 
+  async installPackage(
+    alias: DeviceAlias,
+    packagePath: string,
+  ): Promise<CommandResult> {
+    return this.runCli(this.installCommand, [packagePath, "--device", alias]);
+  }
+
   async extendDeveloperMode(alias: DeviceAlias): Promise<CommandResult> {
     await this.requireDevice(alias);
     return this.runCli(this.launchCommand, [

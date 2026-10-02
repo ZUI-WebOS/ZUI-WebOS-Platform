@@ -183,6 +183,24 @@ describe("webOS CLI adapter", () => {
     });
   });
 
+  it("passes an IPK path as one install argv element", async () => {
+    const runner = new QueueRunner([
+      commandResult({ executable: "ares-install" }),
+    ]);
+    const adapter = new WebOSCliAdapter({
+      runner,
+      executables: { install: "install-test" },
+    });
+    await adapter.installPackage(
+      alias,
+      "C:\\Packages With Spaces\\staging.ipk",
+    );
+    expect(runner.requests[0]).toMatchObject({
+      executable: "install-test",
+      args: ["C:\\Packages With Spaces\\staging.ipk", "--device", "tv"],
+    });
+  });
+
   it("reports a missing CLI executable", async () => {
     const missing = Object.assign(new Error("missing"), { code: "ENOENT" });
     const adapter = new WebOSCliAdapter({
