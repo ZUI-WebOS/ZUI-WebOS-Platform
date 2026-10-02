@@ -1,7 +1,17 @@
 #!/usr/bin/env node
-import { readFile, readdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import {
+  access,
+  readFile,
+  readdir,
+  realpath,
+  writeFile,
+} from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+  ArtifactDistributionService,
+  GitHubReleaseProvider,
+} from "@zui-webos/artifact-distribution";
 
 import {
   matchProduct,
@@ -24,6 +34,15 @@ import {
   inspectIpk,
   type PackageInspection,
 } from "@zui-webos/package-inspector";
+import {
+  createEphemeralStagingSigner,
+  validateManifest,
+  validateTrustStore,
+  verifyReleaseManifest,
+  type PublicTrustStore,
+  type ReleaseManifestPayload,
+  type ReleaseSignature,
+} from "@zui-webos/signed-release";
 
 import { createLogger } from "./logger.js";
 import { loadConfig, type ConfigOverrides } from "./config.js";
@@ -42,6 +61,7 @@ interface ParsedArguments {
   readonly save?: string;
   readonly approve?: string;
   readonly planTtlMinutes?: number;
+  readonly ephemeralStaging: boolean;
   readonly overrides: ConfigOverrides;
 }
 
@@ -59,6 +79,13 @@ Usage:
   zui-webos install receipts [--json]
   zui-webos release list [--json]
   zui-webos release inspect <artifact-id> [--json]
+  zui-webos trust keys list [--json]
+  zui-webos release manifest build <artifact-id> <source-commit> <output.json>
+  zui-webos release manifest sign <manifest.json> <signature.json> <public-key.json> --ephemeral-staging
+  zui-webos release manifest verify <manifest.json> <signature.json> [--json]
+  zui-webos artifact fetch <owner/repo> <tag> <artifact-id> [--json]
+  zui-webos artifact cache list [--json]
+  zui-webos artifact cache verify <sha256> [--json]
   zui-webos devmode status [--device <alias>] [--json]
   zui-webos devmode extend [--device <alias>] [--dry-run] [--json]
   zui-webos devmode ensure [--device <alias>] [--dry-run] [--json]
@@ -88,6 +115,7 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
   let save: string | undefined;
   let approve: string | undefined;
   let planTtlMinutes: number | undefined;
+  let ephemeralStaging = false;
   let device: string | undefined;
   let timeoutMs: number | undefined;
   let thresholdHours: number | undefined;
@@ -133,6 +161,9 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
           );
         index += 1;
         break;
+      case "--ephemeral-staging":
+        ephemeralStaging = true;
+        break;
       case "--timeout-ms":
         timeoutMs = Number(optionValue(args, index, value));
         index += 1;
@@ -164,6 +195,7 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     ...(save === undefined ? {} : { save }),
     ...(approve === undefined ? {} : { approve }),
     ...(planTtlMinutes === undefined ? {} : { planTtlMinutes }),
+    ephemeralStaging,
     overrides: {
       ...(device === undefined ? {} : { device }),
       ...(timeoutMs === undefined ? {} : { timeoutMs }),
@@ -194,6 +226,49 @@ async function loadReleaseRecords(
       validation.errors.join("; "),
     );
   return records as ProductRelease[];
+}
+
+async function loadTrustStore(): Promise<PublicTrustStore> {
+  const value: unknown = JSON.parse(
+    await readFile(
+      new URL("../../../repository/trust/keys.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  if (!validateTrustStore(value))
+    throw new PlatformError(
+      "MANIFEST_INVALID",
+      "Public trust store is invalid.",
+    );
+  return value;
+}
+
+async function verifySignedCacheArtifact(
+  inspection: PackageInspection,
+): Promise<boolean> {
+  const metadataPath = join(dirname(inspection.path), "verified-metadata.json");
+  try {
+    await access(metadataPath);
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+  const result = await new ArtifactDistributionService(
+    new GitHubReleaseProvider(),
+  ).verifyCached(inspection.hash.digest, await loadTrustStore());
+  const expectedPath = resolve(await realpath(result.artifactPath));
+  const selectedPath = resolve(await realpath(inspection.path));
+  const samePath =
+    process.platform === "win32"
+      ? expectedPath.toLocaleLowerCase("en-US") ===
+        selectedPath.toLocaleLowerCase("en-US")
+      : expectedPath === selectedPath;
+  if (!samePath)
+    throw new PlatformError(
+      "CACHE_VERIFICATION_FAILED",
+      "Signed cache metadata does not bind the selected artifact path.",
+    );
+  return true;
 }
 
 function validateAppId(value: string | undefined): string {
@@ -266,6 +341,203 @@ async function execute(args: readonly string[]): Promise<number> {
   const emit = (value: unknown, human: string): void => {
     logger.result(parsed.json ? value : human);
   };
+
+  if (route === "trust keys list") {
+    const store = await loadTrustStore();
+    emit(
+      store,
+      store.keys
+        .map((key) => `${key.keyId} ${key.status} ${key.scopes.join(",")}`)
+        .join("\n"),
+    );
+    return 0;
+  }
+
+  if (commandGroup === "release" && commandAction === "manifest") {
+    const operation = parsed.command[2];
+    if (operation === "build") {
+      const [artifactId, sourceCommit, output] = parsed.command.slice(3);
+      if (
+        artifactId === undefined ||
+        sourceCommit === undefined ||
+        output === undefined ||
+        !/^[a-f0-9]{40}$/u.test(sourceCommit)
+      )
+        throw new PlatformError(
+          "INVALID_ARGUMENT",
+          "manifest build requires artifact ID, source commit, and output path.",
+        );
+      const registry = await loadProductRegistry();
+      const releases = await loadReleaseRecords(registry);
+      const release = releases.find((item) =>
+        item.artifacts.some((artifact) => artifact.artifactId === artifactId),
+      );
+      const artifact = release?.artifacts.find(
+        (item) => item.artifactId === artifactId,
+      );
+      const product = registry.products.find(
+        (item) => item.id === release?.productId,
+      );
+      if (
+        release === undefined ||
+        artifact === undefined ||
+        product === undefined
+      )
+        throw new PlatformError(
+          "ARTIFACT_METADATA_INVALID",
+          "Artifact metadata was not found.",
+        );
+      const payload: ReleaseManifestPayload = {
+        schemaVersion: 1,
+        productId: release.productId,
+        releaseId: `zui-staging-${release.version}-acceptance`,
+        version: release.version,
+        channel: artifact.deploymentClass === "staging" ? "staging" : "stable",
+        repository: product.repository,
+        sourceCommit,
+        issuedAt: new Date().toISOString(),
+        artifacts: [
+          {
+            artifactId: artifact.artifactId,
+            filename: artifact.filename,
+            appId: artifact.appId,
+            version: artifact.version,
+            deploymentClass: artifact.deploymentClass,
+            size: artifact.size,
+            sha256: artifact.hash.digest,
+            contentType: "application/vnd.webos.ipk",
+            source: {
+              provider: "GITHUB_RELEASE",
+              repository: product.repository,
+              releaseTag: `zui-staging-${release.version}-acceptance`,
+              assetName: artifact.filename,
+            },
+          },
+        ],
+      };
+      await writeFile(output, `${JSON.stringify(payload, null, 2)}\n`, {
+        encoding: "utf8",
+        flag: "wx",
+      });
+      emit(payload, `Manifest written: ${output}`);
+      return 0;
+    }
+    if (operation === "sign") {
+      const [manifestPath, signaturePath, publicKeyPath] =
+        parsed.command.slice(3);
+      if (
+        !parsed.ephemeralStaging ||
+        manifestPath === undefined ||
+        signaturePath === undefined ||
+        publicKeyPath === undefined
+      )
+        throw new PlatformError(
+          "INVALID_ARGUMENT",
+          "manifest sign requires paths and --ephemeral-staging.",
+        );
+      const payload: unknown = JSON.parse(await readFile(manifestPath, "utf8"));
+      if (!validateManifest(payload))
+        throw new PlatformError(
+          "MANIFEST_INVALID",
+          "Manifest validation failed.",
+        );
+      const generated = createEphemeralStagingSigner();
+      const signature = generated.signer.sign(payload);
+      await writeFile(
+        signaturePath,
+        `${JSON.stringify(signature, null, 2)}\n`,
+        { encoding: "utf8", flag: "wx" },
+      );
+      await writeFile(
+        publicKeyPath,
+        `${JSON.stringify(generated.trustEntry, null, 2)}\n`,
+        { encoding: "utf8", flag: "wx" },
+      );
+      emit(
+        { signature, trustEntry: generated.trustEntry },
+        `Ephemeral staging signature written. Key ID: ${generated.trustEntry.keyId}`,
+      );
+      return 0;
+    }
+    if (operation === "verify") {
+      const [manifestPath, signaturePath] = parsed.command.slice(3);
+      if (manifestPath === undefined || signaturePath === undefined)
+        throw new PlatformError(
+          "INVALID_ARGUMENT",
+          "manifest verify requires manifest and signature paths.",
+        );
+      const payload: unknown = JSON.parse(await readFile(manifestPath, "utf8"));
+      const signature = JSON.parse(
+        await readFile(signaturePath, "utf8"),
+      ) as ReleaseSignature;
+      const result = verifyReleaseManifest(
+        payload,
+        signature,
+        await loadTrustStore(),
+      );
+      emit(result, `${result.trustDecision}\nKey: ${result.keyId}`);
+      return result.trustDecision === "SIGNED_TRUSTED" ? 0 : 60;
+    }
+  }
+
+  if (commandGroup === "artifact" && commandAction === "fetch") {
+    const [repository, tag, artifactId] = parsed.command.slice(2);
+    if (
+      repository === undefined ||
+      tag === undefined ||
+      artifactId === undefined
+    )
+      throw new PlatformError(
+        "INVALID_ARGUMENT",
+        "artifact fetch requires repository, tag, and artifact ID.",
+      );
+    const registry = await loadProductRegistry();
+    const allowed = registry.products.some(
+      (product) => product.repository === `https://github.com/${repository}`,
+    );
+    if (!allowed)
+      throw new PlatformError(
+        "DISTRIBUTION_FAILED",
+        "Repository is not in the product registry.",
+      );
+    const result = await new ArtifactDistributionService(
+      new GitHubReleaseProvider(),
+    ).fetch({
+      repository,
+      tag,
+      artifactId,
+      trustStore: await loadTrustStore(),
+    });
+    emit(
+      result,
+      `SIGNED_TRUSTED\nArtifact: ${result.artifactPath}\nSHA256: ${result.sha256}`,
+    );
+    return 0;
+  }
+  if (route === "artifact cache list") {
+    const items = await new ArtifactDistributionService(
+      new GitHubReleaseProvider(),
+    ).list();
+    emit({ digests: items }, items.join("\n"));
+    return 0;
+  }
+  if (
+    commandGroup === "artifact" &&
+    commandAction === "cache" &&
+    parsed.command[2] === "verify"
+  ) {
+    const digest = parsed.command[3];
+    if (digest === undefined)
+      throw new PlatformError(
+        "INVALID_ARGUMENT",
+        "cache verify requires a digest.",
+      );
+    const result = await new ArtifactDistributionService(
+      new GitHubReleaseProvider(),
+    ).verifyCached(digest, await loadTrustStore());
+    emit(result, `${result.trustDecision}\n${result.artifactPath}`);
+    return 0;
+  }
 
   if (
     commandGroup === "release" &&
@@ -380,12 +652,15 @@ async function execute(args: readonly string[]): Promise<number> {
       appId: manifest.id,
       version: manifest.version,
     });
+    const signedDistributionTrusted =
+      await verifySignedCacheArtifact(inspection);
     const plan = createInstallationPlan({
       package: inspection,
       registry,
       inventory,
       connectionStatus: device.health.connectionStatus,
       artifactVerification,
+      signedDistributionTrusted,
       ...(parsed.planTtlMinutes === undefined
         ? {}
         : { ttlMs: parsed.planTtlMinutes * 60 * 1000 }),

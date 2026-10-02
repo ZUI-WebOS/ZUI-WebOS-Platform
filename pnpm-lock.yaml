@@ -22,6 +22,9 @@ importers:
       "@types/node":
         specifier: ^24.5.2
         version: 24.19.0
+      "@zui-webos/artifact-distribution":
+        specifier: workspace:*
+        version: link:packages/artifact-distribution
       "@zui-webos/catalog-contracts":
         specifier: workspace:*
         version: link:packages/catalog-contracts
@@ -37,6 +40,9 @@ importers:
       "@zui-webos/shared-types":
         specifier: workspace:*
         version: link:packages/shared-types
+      "@zui-webos/signed-release":
+        specifier: workspace:*
+        version: link:packages/signed-release
       "@zui-webos/webos-client":
         specifier: workspace:*
         version: link:packages/webos-client
@@ -58,6 +64,9 @@ importers:
 
   apps/devmode-keeper:
     dependencies:
+      "@zui-webos/artifact-distribution":
+        specifier: workspace:*
+        version: link:../../packages/artifact-distribution
       "@zui-webos/catalog-contracts":
         specifier: workspace:*
         version: link:../../packages/catalog-contracts
@@ -73,9 +82,31 @@ importers:
       "@zui-webos/shared-types":
         specifier: workspace:*
         version: link:../../packages/shared-types
+      "@zui-webos/signed-release":
+        specifier: workspace:*
+        version: link:../../packages/signed-release
       "@zui-webos/webos-client":
         specifier: workspace:*
         version: link:../../packages/webos-client
+    devDependencies:
+      "@types/node":
+        specifier: "catalog:"
+        version: 24.19.0
+      typescript:
+        specifier: "catalog:"
+        version: 5.9.3
+
+  packages/artifact-distribution:
+    dependencies:
+      "@zui-webos/package-inspector":
+        specifier: workspace:*
+        version: link:../package-inspector
+      "@zui-webos/signed-release":
+        specifier: workspace:*
+        version: link:../signed-release
+      "@zui-webos/webos-client":
+        specifier: workspace:*
+        version: link:../webos-client
     devDependencies:
       "@types/node":
         specifier: "catalog:"
@@ -151,6 +182,15 @@ importers:
         version: 5.9.3
 
   packages/shared-types:
+    devDependencies:
+      "@types/node":
+        specifier: "catalog:"
+        version: 24.19.0
+      typescript:
+        specifier: "catalog:"
+        version: 5.9.3
+
+  packages/signed-release:
     devDependencies:
       "@types/node":
         specifier: "catalog:"

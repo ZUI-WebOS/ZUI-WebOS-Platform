@@ -14,9 +14,11 @@
   },
   "dependencies": {
     "@zui-webos/catalog-contracts": "workspace:*",
+    "@zui-webos/artifact-distribution": "workspace:*",
     "@zui-webos/installation-planner": "workspace:*",
     "@zui-webos/installer-service": "workspace:*",
     "@zui-webos/package-inspector": "workspace:*",
+    "@zui-webos/signed-release": "workspace:*",
     "@zui-webos/shared-types": "workspace:*",
     "@zui-webos/webos-client": "workspace:*"
   },

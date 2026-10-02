@@ -204,6 +204,7 @@ export function createInstallationPlan(input: {
   readonly artifactVerification?: ArtifactVerificationResult;
   readonly now?: Date;
   readonly ttlMs?: number;
+  readonly signedDistributionTrusted?: boolean;
 }): InstallationPlanV2 {
   const manifest =
     input.package.manifests.length === 1
@@ -319,7 +320,9 @@ export function createInstallationPlan(input: {
       version: manifest.version,
       deploymentClass:
         verification.deploymentClass ?? registryMatch.deploymentClass,
-      trustLevel: verification.trustLevel,
+      trustLevel: input.signedDistributionTrusted
+        ? "SIGNED"
+        : verification.trustLevel,
     },
     installedState: {
       installed: installed !== null,
