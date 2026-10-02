@@ -42,6 +42,21 @@ The platform is rootless and Developer Mode only. It does not patch firmware, mo
 | Production overwrite | InstallerService independently permits staging only and hard-blocks both production IDs. |
 | Secret exposure in logs/receipts | Sanitized output and a minimal receipt contract without credentials. |
 
+## Signed distribution extension
+
+| Threat | Control |
+|---|---|
+| Compromised artifact host or artifact replacement | Ed25519 manifest verification precedes metadata trust; streaming bytes must match signed SHA-256 and size. |
+| Manifest tampering or signature substitution | Deterministic canonical payload and detached-signature verification against a key ID derived from SPKI. |
+| Unknown key injection or stale/revoked key | Validated public trust store, explicit lifecycle decisions, time bounds, and revalidation on every high-trust cache use. |
+| Private-key leakage | Private material is external-only; acceptance key is generated in memory and never persisted. |
+| Malicious provider result or repository substitution | Registry allow-list, exact provider repository equality, HTTPS GitHub API URL validation, and exact draft/pre-release state. |
+| Partial/oversized download | Bounded streaming to randomized `.part.ipk`, measured byte ceiling, exact size, cleanup on failure, atomic promotion only after inspection. |
+| Cache poisoning | Content-addressed directory plus repeat signature, hash, size, app ID, and version validation. |
+| Staging key used for production | Artifact deployment class selects required key scope; production policy remains independently hard-blocked. |
+| Replayed old signed release | Repository pin agreement, release identity/source commit binding, key lifecycle/time window, and explicit approval-plan expiry. Trusted timestamps and general anti-rollback policy remain future work. |
+| Repository compromise | Signed key trust is separate from repository metadata; disagreement blocks. A compromise of both repository and authorized private key remains out of scope. |
+
 ## Trust assumptions
 
 The locally installed LG webOS CLI and the device registry are trusted user-managed dependencies. A registered alias does not prove reachability. A successful extension launch marker plus a separate post-command connectivity check proves command-level acceptance, not the exact resulting expiry.

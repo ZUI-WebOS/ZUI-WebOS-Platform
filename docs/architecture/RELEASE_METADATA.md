@@ -13,7 +13,7 @@ Records live under `repository/releases/<product-id>/<version>.json` and contain
 - `UNVERIFIED`: metadata or bytes do not match.
 - `REGISTRY_MATCH`: only product/app identity matches.
 - `REPOSITORY_PINNED_HASH`: repository metadata pins SHA-256 and size, and current bytes/identity match.
-- `SIGNED`: reserved; never emitted because signature verification is not implemented.
+- `SIGNED`: the repository-pinned artifact also matches a currently trusted Ed25519 release manifest and verified cache entry.
 
-Pinned repository metadata is not publisher code signing, proof of authorship, or protection against repository compromise. Arbitrary URLs are not downloaded or trusted.
+Pinned metadata and signed manifests are cumulative. Any hash, size, app ID, version, repository, or deployment-class disagreement blocks the signed path; neither source silently wins. Pinned metadata alone retains the prior staging policy behavior, while `SIGNED` adds release-key authenticity. Arbitrary repository URLs are not accepted.
 

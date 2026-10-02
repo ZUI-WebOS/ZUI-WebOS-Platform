@@ -10,7 +10,9 @@ The installer uses transactional orchestration, not an ACID transaction:
 6. Re-read inventory and verify the expected staging version plus unchanged production applications.
 7. Write an audit receipt outside Git.
 
-Only known staging artifacts with `REPOSITORY_PINNED_HASH` trust can receive `ALLOW_WITH_APPROVAL`. Production, unknown provenance/product, downgrade, unreachable device, invalid package, stale plan, altered artifact, or changed installed state are blocked without an override.
+Only known staging artifacts matching repository-pinned metadata can receive `ALLOW_WITH_APPROVAL`. A cache artifact whose current manifest/key revalidation passes is shown as `SIGNED`; unsigned pinned staging retains the previous `REPOSITORY_PINNED_HASH` behavior. Production, revoked/invalid signed cache state, metadata disagreement, unknown provenance/product, downgrade, unreachable device, invalid package, stale plan, altered artifact, or changed installed state are blocked without an override.
+
+Signature trust and deployment policy are separate. Even a valid `SIGNED` artifact for `com.zui.player` or `youtube.leanback.v4` remains non-executable.
 
 Plan approval is the exact uppercase SHA-256 digest of deterministic canonical JSON. Plans default to ten minutes and are bounded to 1–30 minutes. A receipt makes a used plan non-replayable.
 
