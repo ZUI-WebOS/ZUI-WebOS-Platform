@@ -6,7 +6,7 @@ ZUI webOS Platform is a rootless management layer and developer-tooling monorepo
 
 ## Current scope
 
-The first production-quality module is **ZUI DevMode Keeper**, a Windows-first CLI that discovers configured webOS devices, checks connectivity, invokes the official Developer Mode extension path, and verifies the command outcome without exposing credentials.
+Production-quality local modules now include **ZUI DevMode Keeper**, the read-only **Device Manager Core**, the **Verified Package Inspector**, and the non-executing **Installation Planner**.
 
 The platform is also the management layer for future device, catalog, installer, release-registry, web-manager, and TV-store components. Product source remains in independent repositories:
 
@@ -61,6 +61,11 @@ Build once, then invoke the CLI through the workspace script:
 ```powershell
 pnpm build
 pnpm zui-webos devices list
+pnpm zui-webos devices inspect --device tv
+pnpm zui-webos apps list --device tv
+pnpm zui-webos apps inspect --device tv --app com.zui.player
+pnpm zui-webos package verify C:\path\to\application.ipk
+pnpm zui-webos install plan C:\path\to\application.ipk --device tv
 pnpm zui-webos devmode status --device tv
 pnpm zui-webos devmode extend --device tv --dry-run
 pnpm zui-webos devmode extend --device tv
@@ -72,7 +77,7 @@ Add `--json` for machine-readable results. Configuration precedence is CLI argum
 
 The public webOS CLI does not expose the resulting Developer Mode expiry timestamp. Keeper therefore reports command acceptance and post-command connectivity separately from `expiryVerified`; it never invents an expiry or claims that unknown state is measured.
 
-No scheduler or background service is installed by default.
+Package inspection and installation planning never install an IPK. A plan displays risks and a proposed command for review, but is deliberately non-executable. No scheduler or background service is installed by default.
 
 ## Safety model
 
@@ -83,7 +88,7 @@ No scheduler or background service is installed by default.
 - Logs redact connection addresses and credential-like values.
 - Package installation, uninstallation, storage reset, rooting, privilege escalation, and firmware mutation are outside DevMode Keeper.
 
-See [Threat Model](docs/security/THREAT_MODEL.md), [Security Baseline](docs/security/SECURITY_BASELINE.md), and [DevMode Keeper Architecture](docs/architecture/DEVMODE_KEEPER.md).
+See [Threat Model](docs/security/THREAT_MODEL.md), [Package Security](docs/security/PACKAGE_SECURITY.md), [Device Manager](docs/architecture/DEVICE_MANAGER.md), [Package Inspector](docs/architecture/PACKAGE_INSPECTOR.md), and [Installation Planner](docs/architecture/INSTALLATION_PLANNER.md).
 
 ## Roadmap
 
