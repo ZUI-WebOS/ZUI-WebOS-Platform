@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { ProductRegistry } from "@zui-webos/catalog-contracts";
+import type {
+  ArtifactVerificationResult,
+  ProductRegistry,
+} from "@zui-webos/catalog-contracts";
 import {
   compareVersions,
   createInstallationPlan,
@@ -82,6 +85,28 @@ function plan(id: string, candidate: string, installed?: string) {
   });
 }
 
+function pinned(
+  deploymentClass: "staging" | "production",
+): ArtifactVerificationResult {
+  return {
+    status: "VERIFIED_PINNED_ARTIFACT",
+    trustLevel: "REPOSITORY_PINNED_HASH",
+    expectedSha256: "A".repeat(64),
+    hashMatches: true,
+    expectedSize: 100,
+    sizeMatches: true,
+    expectedAppId:
+      deploymentClass === "staging"
+        ? "com.zui.webos.youtube.staging"
+        : "youtube.leanback.v4",
+    appIdMatches: true,
+    expectedVersion: "1.0.0",
+    versionMatches: true,
+    deploymentClass,
+    artifactRecord: null,
+  };
+}
+
 describe("installation planner", () => {
   it("compares strict semantic versions deterministically", () => {
     expect(compareVersions("1.2.3", "1.3.0")).toBe("UPGRADE");
@@ -150,5 +175,45 @@ describe("installation planner", () => {
         severity: "BLOCK",
       }),
     );
+  });
+
+  it("allows signed staging planning while retaining explicit approval", () => {
+    const result = createInstallationPlan({
+      package: packageInspection("com.zui.webos.youtube.staging"),
+      registry,
+      inventory: inventory(),
+      connectionStatus: "reachable",
+      artifactVerification: pinned("staging"),
+      signedDistributionTrusted: true,
+    });
+    expect(result.artifact.trustLevel).toBe("SIGNED");
+    expect(result.policyDecision).toBe("ALLOW_WITH_APPROVAL");
+    expect(result.requiresExplicitApproval).toBe(true);
+  });
+
+  it("keeps signed production artifacts hard-blocked", () => {
+    const result = createInstallationPlan({
+      package: packageInspection("youtube.leanback.v4"),
+      registry,
+      inventory: inventory(),
+      connectionStatus: "reachable",
+      artifactVerification: pinned("production"),
+      signedDistributionTrusted: true,
+    });
+    expect(result.artifact.trustLevel).toBe("SIGNED");
+    expect(result.policyDecision).toBe("BLOCK");
+    expect(result.executable).toBe(false);
+  });
+
+  it("preserves the accepted unsigned pinned staging behavior", () => {
+    const result = createInstallationPlan({
+      package: packageInspection("com.zui.webos.youtube.staging"),
+      registry,
+      inventory: inventory(),
+      connectionStatus: "reachable",
+      artifactVerification: pinned("staging"),
+    });
+    expect(result.artifact.trustLevel).toBe("REPOSITORY_PINNED_HASH");
+    expect(result.policyDecision).toBe("ALLOW_WITH_APPROVAL");
   });
 });
