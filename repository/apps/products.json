@@ -7,6 +7,10 @@
       "displayName": "ZUI IPTV Player",
       "repository": "https://github.com/ZUI-WebOS/ZUI-IPTV-Player",
       "appIds": ["com.zui.player"],
+      "appIdentities": [
+        { "appId": "com.zui.player", "deploymentClass": "production" }
+      ],
+      "expectedPublisher": "ZUI",
       "deploymentModel": "developer-mode-ipk",
       "releaseSource": "github-releases",
       "rootlessCompatible": true,
@@ -17,6 +21,14 @@
       "displayName": "ZUI YouTube for webOS",
       "repository": "https://github.com/ZUI-WebOS/ZUI-YouTube-WebOS",
       "appIds": ["youtube.leanback.v4", "com.zui.webos.youtube.staging"],
+      "appIdentities": [
+        { "appId": "youtube.leanback.v4", "deploymentClass": "production" },
+        {
+          "appId": "com.zui.webos.youtube.staging",
+          "deploymentClass": "staging"
+        }
+      ],
+      "expectedPublisher": "webosbrew.org",
       "deploymentModel": "developer-mode-ipk",
       "releaseSource": "github-releases",
       "rootlessCompatible": true,

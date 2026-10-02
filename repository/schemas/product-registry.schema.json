@@ -18,6 +18,7 @@
           "displayName",
           "repository",
           "appIds",
+          "appIdentities",
           "deploymentModel",
           "releaseSource",
           "rootlessCompatible",
@@ -36,6 +37,20 @@
             "uniqueItems": true,
             "items": { "type": "string", "minLength": 1 }
           },
+          "appIdentities": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["appId", "deploymentClass"],
+              "properties": {
+                "appId": { "type": "string", "minLength": 1 },
+                "deploymentClass": { "enum": ["production", "staging"] }
+              }
+            }
+          },
+          "expectedPublisher": { "type": "string", "minLength": 1 },
           "deploymentModel": { "const": "developer-mode-ipk" },
           "releaseSource": { "const": "github-releases" },
           "rootlessCompatible": { "const": true },

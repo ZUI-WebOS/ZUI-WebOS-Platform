@@ -25,6 +25,12 @@ importers:
       "@zui-webos/catalog-contracts":
         specifier: workspace:*
         version: link:packages/catalog-contracts
+      "@zui-webos/installation-planner":
+        specifier: workspace:*
+        version: link:packages/installation-planner
+      "@zui-webos/package-inspector":
+        specifier: workspace:*
+        version: link:packages/package-inspector
       "@zui-webos/shared-types":
         specifier: workspace:*
         version: link:packages/shared-types
@@ -49,6 +55,15 @@ importers:
 
   apps/devmode-keeper:
     dependencies:
+      "@zui-webos/catalog-contracts":
+        specifier: workspace:*
+        version: link:../../packages/catalog-contracts
+      "@zui-webos/installation-planner":
+        specifier: workspace:*
+        version: link:../../packages/installation-planner
+      "@zui-webos/package-inspector":
+        specifier: workspace:*
+        version: link:../../packages/package-inspector
       "@zui-webos/shared-types":
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -64,6 +79,38 @@ importers:
         version: 5.9.3
 
   packages/catalog-contracts:
+    devDependencies:
+      "@types/node":
+        specifier: "catalog:"
+        version: 24.19.0
+      typescript:
+        specifier: "catalog:"
+        version: 5.9.3
+
+  packages/installation-planner:
+    dependencies:
+      "@zui-webos/catalog-contracts":
+        specifier: workspace:*
+        version: link:../catalog-contracts
+      "@zui-webos/package-inspector":
+        specifier: workspace:*
+        version: link:../package-inspector
+      "@zui-webos/shared-types":
+        specifier: workspace:*
+        version: link:../shared-types
+    devDependencies:
+      "@types/node":
+        specifier: "catalog:"
+        version: 24.19.0
+      typescript:
+        specifier: "catalog:"
+        version: 5.9.3
+
+  packages/package-inspector:
+    dependencies:
+      "@zui-webos/webos-client":
+        specifier: workspace:*
+        version: link:../webos-client
     devDependencies:
       "@types/node":
         specifier: "catalog:"

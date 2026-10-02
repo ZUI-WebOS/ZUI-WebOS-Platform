@@ -1,23 +1,23 @@
 {
-  "name": "@zui-webos/devmode-keeper",
-  "version": "0.1.0",
+  "name": "@zui-webos/installation-planner",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "license": "MIT",
-  "bin": {
-    "zui-webos": "./dist/cli.js"
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "type-check": "tsc -p tsconfig.json",
-    "start": "node dist/cli.js"
+    "type-check": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@zui-webos/catalog-contracts": "workspace:*",
-    "@zui-webos/installation-planner": "workspace:*",
     "@zui-webos/package-inspector": "workspace:*",
-    "@zui-webos/shared-types": "workspace:*",
-    "@zui-webos/webos-client": "workspace:*"
+    "@zui-webos/shared-types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -20,6 +20,8 @@
   },
   "devDependencies": {
     "@zui-webos/catalog-contracts": "workspace:*",
+    "@zui-webos/installation-planner": "workspace:*",
+    "@zui-webos/package-inspector": "workspace:*",
     "@zui-webos/shared-types": "workspace:*",
     "@zui-webos/webos-client": "workspace:*",
     "@eslint/js": "^9.36.0",

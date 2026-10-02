@@ -1,4 +1,8 @@
 const secretPatterns: readonly [RegExp, string][] = [
+  [
+    /"(?:password|passphrase|privatekey|token)"\s*:\s*"[^"]*"/giu,
+    '"credential":"[REDACTED]"',
+  ],
   [/\b(?:password|passphrase|privatekey|token)\s*[=:]\s*\S+/giu, "[REDACTED]"],
   [/\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b/gu, "[REDACTED_ADDRESS]"],
   [/\b(?:prisoner|developer)@\S+/giu, "[REDACTED_CONNECTION]"],
