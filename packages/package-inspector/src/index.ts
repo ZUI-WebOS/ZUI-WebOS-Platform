@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { lstat, open } from "node:fs/promises";
+import { lstat, open, realpath } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { basename, extname } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -259,8 +259,10 @@ export async function inspectIpk(
     );
   }
 
-  const hash = await streamHash(path, info.size);
-  const handle = await open(path, "r");
+  const canonicalPath = await realpath(path);
+
+  const hash = await streamHash(canonicalPath, info.size);
+  const handle = await open(canonicalPath, "r");
   try {
     const magic = Buffer.alloc(8);
     if (
@@ -364,8 +366,8 @@ export async function inspectIpk(
         "IPK has no data.tar.gz payload.",
       );
     return {
-      filename: basename(path),
-      path,
+      filename: basename(canonicalPath),
+      path: canonicalPath,
       size: info.size,
       hash,
       format: "debian-ar+tar.gz",
