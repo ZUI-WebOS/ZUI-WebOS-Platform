@@ -98,7 +98,7 @@ describe("installation planner", () => {
   it("blocks production overwrite and downgrade without executing anything", () => {
     const result = plan("youtube.leanback.v4", "0.8.4", "0.9.0");
     expect(result.executable).toBe(false);
-    expect(result.risks).toEqual(
+    expect(result.riskFlags).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           code: "PRODUCTION_APP_OVERWRITE",
@@ -107,7 +107,7 @@ describe("installation planner", () => {
         expect.objectContaining({ code: "DOWNGRADE", severity: "BLOCK" }),
         expect.objectContaining({
           code: "UNKNOWN_PACKAGE_PROVENANCE",
-          severity: "WARNING",
+          severity: "BLOCK",
         }),
       ]),
     );
@@ -118,14 +118,14 @@ describe("installation planner", () => {
     expect(result.comparison.registryMatch.classification).toBe(
       "KNOWN_STAGING_PRODUCT",
     );
-    expect(result.risks).toContainEqual(
+    expect(result.riskFlags).toContainEqual(
       expect.objectContaining({ code: "STAGING_APP", severity: "INFO" }),
     );
   });
 
   it("warns and blocks an unknown app-id collision", () => {
     const result = plan("com.unknown.app", "1.0.0", "1.0.0");
-    expect(result.risks).toEqual(
+    expect(result.riskFlags).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "UNKNOWN_PRODUCT" }),
         expect.objectContaining({
@@ -144,7 +144,7 @@ describe("installation planner", () => {
       inventory: inventory(),
       connectionStatus: "unreachable",
     });
-    expect(result.risks).toContainEqual(
+    expect(result.riskFlags).toContainEqual(
       expect.objectContaining({
         code: "DEVICE_UNREACHABLE",
         severity: "BLOCK",
