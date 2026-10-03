@@ -10,16 +10,31 @@ import {
 
 import { PlatformError } from "@zui-webos/webos-client";
 import { WebManagerApi, errorAction } from "./api.js";
+import {
+  loadWebManagerConfig,
+  portInUseMessage,
+  type WebManagerConfig,
+} from "./config.js";
 import type { ApiResult, PlanRequest } from "./contracts.js";
 
-const host = "127.0.0.1";
-const port = Number(process.env.ZUI_WEB_MANAGER_PORT ?? 4173);
 const mock = process.env.ZUI_WEB_MANAGER_MOCK === "1";
 const api = new WebManagerApi(mock);
 const clientRoot = fileURLToPath(new URL("./client/", import.meta.url));
+function configOrExit(): WebManagerConfig {
+  try {
+    return loadWebManagerConfig();
+  } catch (error: unknown) {
+    process.stderr.write(
+      `ZUI Web Manager configuration error: ${error instanceof Error ? error.message : "Invalid configuration."}\n`,
+    );
+    process.exit(1);
+  }
+}
+const config = configOrExit();
+const { host, port } = config;
 const allowedOrigins = new Set([
-  `http://${host}:${port}`,
-  `http://localhost:${port}`,
+  `http://${config.host}:${config.port}`,
+  `http://localhost:${config.port}`,
 ]);
 
 function securityHeaders(response: ServerResponse): void {
@@ -204,8 +219,16 @@ const server = createServer((request, response) => {
     });
   });
 });
-server.listen(port, host, () => {
+server.on("error", (error: NodeJS.ErrnoException) => {
+  const message =
+    error.code === "EADDRINUSE"
+      ? portInUseMessage(config)
+      : `ZUI Web Manager could not start on ${config.host}:${config.port}: ${error.message}`;
+  process.stderr.write(`${message}\n`);
+  process.exitCode = 1;
+});
+server.listen(config.port, config.host, () => {
   process.stdout.write(
-    `ZUI Web Manager (${mock ? "MOCK" : "REAL"}) listening on http://${host}:${port}\n`,
+    `ZUI Web Manager (${mock ? "MOCK" : "REAL"}) listening on http://${config.host}:${config.port}\n`,
   );
 });

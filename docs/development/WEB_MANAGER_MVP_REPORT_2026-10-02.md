@@ -10,7 +10,7 @@ React 19, TypeScript, and Vite provide the browser application. A small Node HTT
 
 ## 2. Local API
 
-`pnpm web` builds and serves real mode at `http://127.0.0.1:4173`; `pnpm web:mock` serves deterministic fixture mode. Narrow endpoints cover health, dashboard, one validated device, catalog, cache, receipts, raw-IPK inspection, read-only plan creation, and the process-memory latest plan. There is no generic command, arbitrary filesystem, or installer endpoint.
+`pnpm web` builds and serves real mode at `http://127.0.0.1:4273` by default; `pnpm web:mock` serves deterministic fixture mode. `ZUI_WEB_MANAGER_PORT` provides a validated per-process override without changing the loopback-only host, and an occupied port fails startup explicitly. Narrow endpoints cover health, dashboard, one validated device, catalog, cache, receipts, raw-IPK inspection, read-only plan creation, and the process-memory latest plan. There is no generic command, arbitrary filesystem, or installer endpoint.
 
 ## 3. Security
 

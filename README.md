@@ -61,7 +61,7 @@ pnpm web
 pnpm web:mock
 ```
 
-Both commands bind only to `http://127.0.0.1:4173`. The browser talks to a narrow local API that reuses the platform services; it has no generic command or filesystem endpoint. Uploaded IPKs are inspected but never executed from the UI.
+Both commands bind only to `http://127.0.0.1:4273` by default. Set `ZUI_WEB_MANAGER_PORT` to a whole number from `1` through `65535` to use another local port; the host remains fixed to `127.0.0.1`. If the requested port is occupied, startup stops with an actionable error instead of selecting another port. The browser talks to a narrow local API that reuses the platform services; it has no generic command or filesystem endpoint. Uploaded IPKs are inspected but never executed from the UI.
 
 Documentation localization convention: `README.md` is the canonical English document. A future `README_TR.md` will be the maintained Turkish user-facing counterpart after its translation-quality gate is defined; no placeholder translation is kept.
 

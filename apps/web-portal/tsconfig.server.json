@@ -6,5 +6,11 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src/server.ts", "src/api.ts", "src/contracts.ts", "src/mock.ts"]
+  "include": [
+    "src/server.ts",
+    "src/api.ts",
+    "src/config.ts",
+    "src/contracts.ts",
+    "src/mock.ts"
+  ]
 }

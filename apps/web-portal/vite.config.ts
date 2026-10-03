@@ -1,12 +1,19 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import {
+  DEFAULT_WEB_MANAGER_DEV_PORT,
+  loadWebManagerConfig,
+} from "./src/config.js";
+
+const webManager = loadWebManagerConfig();
 
 export default defineConfig({
   plugins: [react()],
   build: { outDir: "dist/client", emptyOutDir: false },
   server: {
-    host: "127.0.0.1",
-    port: 4174,
-    proxy: { "/api": "http://127.0.0.1:4173" },
+    host: webManager.host,
+    port: DEFAULT_WEB_MANAGER_DEV_PORT,
+    strictPort: true,
+    proxy: { "/api": `http://${webManager.host}:${webManager.port}` },
   },
 });
