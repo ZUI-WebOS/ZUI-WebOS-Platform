@@ -16,8 +16,10 @@ import type {
   CatalogDto,
   DashboardDto,
   DeviceDetailDto,
-  InstallationPlanV2,
+  CatalogFetchResultDto,
   PackageResultDto,
+  ProductUpdateComparison,
+  PublicInstallationPlanDto,
   ReceiptDto,
   CacheDto,
 } from "../contracts.js";
@@ -106,7 +108,12 @@ export function App() {
   const [receipts, setReceipts] = useState<readonly ReceiptDto[]>([]);
   const [device, setDevice] = useState<DeviceDetailDto | null>(null);
   const [pkg, setPkg] = useState<PackageResultDto | null>(null);
-  const [plan, setPlan] = useState<InstallationPlanV2 | null>(null);
+  const [plan, setPlan] = useState<PublicInstallationPlanDto | null>(null);
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogFilter, setCatalogFilter] = useState("all");
+  const [fetchResult, setFetchResult] = useState<CatalogFetchResultDto | null>(
+    null,
+  );
   const [error, setError] = useState<
     (Error & { code?: string; action?: string | null }) | null
   >(null);
@@ -142,7 +149,7 @@ export function App() {
   useEffect(() => {
     if (viewFromHash() !== view) window.location.hash = `/${view}`;
     if (view === "packages" && plan === null)
-      void api<InstallationPlanV2 | null>("/api/plans/latest")
+      void api<PublicInstallationPlanDto | null>("/api/plans/latest")
         .then((latest) => {
           if (latest !== null) setPlan(latest);
         })
@@ -176,7 +183,7 @@ export function App() {
   };
   const generatePlan = (): void => {
     if (pkg === null || dashboard === null) return;
-    void api<InstallationPlanV2>("/api/plans", {
+    void api<PublicInstallationPlanDto>("/api/plans", {
       method: "POST",
       headers: { ...guardedHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -185,6 +192,70 @@ export function App() {
       }),
     })
       .then(setPlan)
+      .catch((reason: unknown) => setError(reason as Error));
+  };
+  const updateLabel = (update: ProductUpdateComparison | null) => {
+    if (update === null) return "Not managed";
+    return {
+      UP_TO_DATE: t("upToDate"),
+      UPDATE_AVAILABLE: t("updateAvailable"),
+      AHEAD_OF_CATALOG: t("aheadOfCatalog"),
+      NOT_INSTALLED: t("notInstalled"),
+      VERSION_UNKNOWN: t("versionUnknown"),
+      NO_COMPATIBLE_RELEASE: t("noCompatibleRelease"),
+    }[update.versionStatus];
+  };
+  const updateBadge = (update: ProductUpdateComparison | null) => (
+    <Badge
+      tone={
+        update?.versionStatus === "UPDATE_AVAILABLE"
+          ? "warning"
+          : update?.versionStatus === "UP_TO_DATE"
+            ? "positive"
+            : "info"
+      }
+    >
+      {updateLabel(update)}
+    </Badge>
+  );
+  const fetchArtifact = (
+    productId: string,
+    releaseId: string,
+    artifactId: string,
+  ) => {
+    setError(null);
+    void api<CatalogFetchResultDto>("/api/catalog/artifacts/fetch", {
+      method: "POST",
+      headers: { ...guardedHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ productId, releaseId, artifactId }),
+    })
+      .then((result) => {
+        setFetchResult(result);
+        return refresh();
+      })
+      .catch((reason: unknown) => setError(reason as Error));
+  };
+  const generateCatalogPlan = (
+    productId: string,
+    releaseId: string,
+    artifactId: string,
+  ) => {
+    if (dashboard === null) return;
+    setError(null);
+    void api<PublicInstallationPlanDto>("/api/catalog/plans", {
+      method: "POST",
+      headers: { ...guardedHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        productId,
+        releaseId,
+        artifactId,
+        device: dashboard.selectedDevice,
+      }),
+    })
+      .then((result) => {
+        setPlan(result);
+        setView("packages");
+      })
       .catch((reason: unknown) => setError(reason as Error));
   };
   const classification = (value: string) =>
@@ -228,7 +299,7 @@ export function App() {
             <Metric
               label={t("products")}
               value={dashboard.products}
-              detail={`${dashboard.releases} ${t("releases").toLowerCase()}`}
+              detail={`${dashboard.updatesAvailable} ${t("updateAvailable").toLowerCase()}`}
             />
             <Metric
               label={t("security")}
@@ -342,12 +413,14 @@ export function App() {
                   t("appId"),
                   t("version"),
                   t("classification"),
+                  t("status"),
                 ]}
                 rows={device.applications.map((a) => [
                   a.application.title ?? a.application.id,
                   <code>{a.application.id}</code>,
                   a.application.version ?? "—",
                   classification(a.match.classification),
+                  updateBadge(a.update),
                 ])}
               />
             </Panel>
@@ -363,72 +436,207 @@ export function App() {
               t("appId"),
               t("version"),
               t("classification"),
+              t("releaseChannel"),
+              t("availableVersion"),
+              t("status"),
+              t("trust"),
             ]}
             rows={dashboard.applications.map((a) => [
               a.application.title ?? a.application.id,
               <code>{a.application.id}</code>,
               a.application.version ?? "—",
               classification(a.match.classification),
+              a.update?.installed.channel ?? "—",
+              a.update?.available.version ?? "—",
+              updateBadge(a.update),
+              a.update ? (
+                <Badge tone={trustTone(a.update.trustStatus)}>
+                  {a.update.trustStatus}
+                </Badge>
+              ) : (
+                "—"
+              ),
             ])}
           />
         </Panel>
       );
-    if (view === "catalog")
+    if (view === "catalog") {
+      const query = catalogSearch.trim().toLowerCase();
+      const routeParts = window.location.hash.replace(/^#\/?/u, "").split("/");
+      const routeProductId = routeParts[1];
+      const routeReleaseId =
+        routeParts[2] === "releases" ? routeParts[3] : undefined;
+      const products = catalog.products.filter((product) => {
+        const comparisons = catalog.comparisons.filter(
+          (item) => item.productId === product.productId,
+        );
+        const searched =
+          query.length === 0 ||
+          product.displayName.toLowerCase().includes(query) ||
+          product.appIdentities.some((identity) =>
+            identity.appId.toLowerCase().includes(query),
+          );
+        const filtered =
+          catalogFilter === "all" ||
+          (catalogFilter === "installed" &&
+            comparisons.some((item) => item.installed.installed)) ||
+          (catalogFilter === "updates" &&
+            comparisons.some(
+              (item) => item.versionStatus === "UPDATE_AVAILABLE",
+            )) ||
+          product.appIdentities.some(
+            (identity) => identity.deploymentClass === catalogFilter,
+          );
+        return (
+          searched &&
+          filtered &&
+          (routeProductId === undefined ||
+            routeProductId.length === 0 ||
+            product.productId === routeProductId)
+        );
+      });
       return (
-        <div className="cards">
-          {catalog.registry.products.map((product) => (
-            <Panel key={product.id} title={product.displayName}>
-              <p>
-                <a href={product.repository} target="_blank" rel="noreferrer">
-                  {product.repository.replace("https://github.com/", "")}
-                </a>
-              </p>
-              <p>{product.rootlessCompatible ? "Rootless compatible" : ""}</p>
-              {product.appIdentities.map((id) => (
-                <p key={id.appId}>
-                  <code>{id.appId}</code>{" "}
-                  <Badge
-                    tone={
-                      id.deploymentClass === "staging" ? "info" : "positive"
-                    }
-                  >
-                    {id.deploymentClass === "staging"
-                      ? t("staging")
-                      : t("production")}
-                  </Badge>
-                </p>
-              ))}
-              {catalog.releases
-                .filter((r) => r.productId === product.id)
-                .map((r) => (
-                  <div className="release" key={r.version}>
-                    <strong>
-                      {t("version")} {r.version}
-                    </strong>
-                    {r.artifacts.map((a) => {
-                      const verified = cache.find(
-                        (entry) => entry.filename === a.filename,
-                      );
-                      return (
-                        <p key={a.artifactId}>
-                          <Badge tone={verified ? "positive" : "info"}>
-                            {verified ? t("signed") : "Pinned hash"}
+        <>
+          <div className="catalog-tools">
+            <label>
+              {t("searchCatalog")}
+              <input
+                type="search"
+                value={catalogSearch}
+                onChange={(event) => setCatalogSearch(event.target.value)}
+              />
+            </label>
+            <label>
+              {t("status")}
+              <select
+                value={catalogFilter}
+                onChange={(event) => setCatalogFilter(event.target.value)}
+              >
+                <option value="all">{t("all")}</option>
+                <option value="installed">{t("installedOnly")}</option>
+                <option value="updates">{t("updatesOnly")}</option>
+                <option value="production">{t("production")}</option>
+                <option value="staging">{t("staging")}</option>
+              </select>
+            </label>
+          </div>
+          <div className="cards">
+            {products.map((product) => {
+              const comparisons = catalog.comparisons.filter(
+                (item) => item.productId === product.productId,
+              );
+              return (
+                <Panel key={product.productId} title={product.displayName}>
+                  <p>
+                    <a
+                      href={product.repository}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {product.repository.replace("https://github.com/", "")}
+                    </a>
+                  </p>
+                  <p>
+                    {product.rootlessCompatible ? "Rootless compatible" : ""}
+                  </p>
+                  {comparisons.map((comparison) => (
+                    <p key={comparison.appId}>
+                      <code>{comparison.appId}</code> {updateBadge(comparison)}{" "}
+                      · {comparison.installed.version ?? "—"} →{" "}
+                      {comparison.available.version ?? "—"}
+                    </p>
+                  ))}
+                  {product.releases
+                    .filter(
+                      (release) =>
+                        routeReleaseId === undefined ||
+                        release.releaseId === routeReleaseId,
+                    )
+                    .map((release) => (
+                      <div className="release" key={release.releaseId}>
+                        <h3>
+                          {release.version} · {release.channel}
+                        </h3>
+                        <small>{release.releaseId}</small>
+                        <p>
+                          <Badge tone={trustTone(release.trustState)}>
+                            {release.trustState}
                           </Badge>{" "}
-                          {a.filename}
-                          <br />
-                          <code>{a.hash.digest.slice(0, 16)}…</code>
-                          {verified && (
-                            <small> · {verified.trustDecision}</small>
-                          )}
+                          <code>
+                            {release.sourceCommit ?? "source unknown"}
+                          </code>
                         </p>
-                      );
-                    })}
-                  </div>
-                ))}
-            </Panel>
-          ))}
-        </div>
+                        {release.artifacts.map((artifact) => (
+                          <div className="artifact" key={artifact.artifactId}>
+                            <strong>{artifact.filename}</strong>
+                            <p>
+                              <code>{artifact.appId}</code> · {artifact.size}{" "}
+                              bytes
+                            </p>
+                            <p>
+                              <Badge tone={trustTone(artifact.trustState)}>
+                                {artifact.trustState}
+                              </Badge>{" "}
+                              <Badge
+                                tone={
+                                  artifact.cacheAvailability ===
+                                  "CACHED_VERIFIED"
+                                    ? "positive"
+                                    : "info"
+                                }
+                              >
+                                {artifact.cacheAvailability}
+                              </Badge>{" "}
+                              <Badge tone="info">
+                                {artifact.remoteAvailability}
+                              </Badge>
+                            </p>
+                            <code>{artifact.sha256.slice(0, 20)}…</code>
+                            {artifact.remoteAvailability ===
+                              "REMOTE_AVAILABLE" && (
+                              <p>
+                                <Button
+                                  onClick={() =>
+                                    fetchArtifact(
+                                      product.productId,
+                                      release.releaseId,
+                                      artifact.artifactId,
+                                    )
+                                  }
+                                >
+                                  {t("downloadVerify")}
+                                </Button>
+                              </p>
+                            )}
+                            {(artifact.cacheAvailability ===
+                              "CACHED_VERIFIED" ||
+                              fetchResult?.artifactId ===
+                                artifact.artifactId) && (
+                              <p>
+                                <Button
+                                  onClick={() =>
+                                    generateCatalogPlan(
+                                      product.productId,
+                                      release.releaseId,
+                                      artifact.artifactId,
+                                    )
+                                  }
+                                >
+                                  {t("generatePlan")}
+                                </Button>
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                </Panel>
+              );
+            })}
+          </div>
+        </>
       );
+    }
     if (view === "packages")
       return (
         <div className="grid">
@@ -582,6 +790,9 @@ export function App() {
     plan,
     view,
     locale,
+    catalogSearch,
+    catalogFilter,
+    fetchResult,
   ]);
   return (
     <div className="shell">

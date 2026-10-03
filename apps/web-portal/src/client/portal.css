@@ -214,6 +214,27 @@ select {
   border: 1px solid var(--line);
   border-radius: 8px;
 }
+.artifact {
+  margin-top: 0.8rem;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(4, 11, 20, 0.34);
+}
+.catalog-tools {
+  display: flex;
+  gap: 1rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+.catalog-tools label:first-child {
+  flex: 1;
+}
+.catalog-tools input,
+.catalog-tools select {
+  width: 100%;
+  margin-top: 0.35rem;
+}
 @media (max-width: 850px) {
   .shell {
     grid-template-columns: 1fr;
