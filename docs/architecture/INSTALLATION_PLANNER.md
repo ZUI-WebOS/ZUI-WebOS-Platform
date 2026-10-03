@@ -10,5 +10,6 @@ Product, release, and artifact are separate contracts:
 - Release: product plus release version and source.
 - Artifact: filename, SHA-256, app ID, and deployment class for one release.
 
-The local repository now stores validated release/artifact records. No cloud download or publisher-signature channel is implemented.
+The local repository stores validated release/artifact records. Signed distribution and the verified content-addressed cache provide the trusted artifact input without changing planner policy.
 
+The Web Manager catalog-to-plan route accepts logical IDs, resolves and revalidates the signed cached artifact, then delegates to this planner. Its browser DTO removes the absolute cache path and proposed command. The resulting plan is read-only: Web Manager has no installation endpoint, approval digest input, force option, or production override.

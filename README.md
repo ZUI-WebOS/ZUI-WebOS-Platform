@@ -6,7 +6,7 @@ ZUI webOS Platform is a rootless management layer and developer-tooling monorepo
 
 ## Current scope
 
-Production-quality local modules now include **ZUI DevMode Keeper**, the read-only **Device Manager Core**, the **Verified Package Inspector**, the approval-gated installer service, signed artifact distribution, and the local **ZUI Web Manager**. The Web Manager can inspect and plan, but intentionally cannot execute an installation or extend Developer Mode.
+Production-quality local modules now include **ZUI DevMode Keeper**, the read-only **Device Manager Core**, the **Verified Package Inspector**, the approval-gated installer service, signed artifact distribution, normalized catalog/update intelligence, and the local **ZUI Web Manager**. The Web Manager can inspect, download and verify trusted catalog artifacts, and generate read-only plans, but intentionally cannot execute an installation or extend Developer Mode.
 
 The platform is also the management layer for future device, catalog, installer, release-registry, web-manager, and TV-store components. Product source remains in independent repositories:
 
@@ -63,6 +63,8 @@ pnpm web:mock
 
 Both commands bind only to `http://127.0.0.1:4273` by default. Set `ZUI_WEB_MANAGER_PORT` to a whole number from `1` through `65535` to use another local port; the host remains fixed to `127.0.0.1`. If the requested port is occupied, startup stops with an actionable error instead of selecting another port. The browser talks to a narrow local API that reuses the platform services; it has no generic command or filesystem endpoint. Uploaded IPKs are inspected but never executed from the UI.
 
+The catalog correlates current installed inventory with exact registered App IDs, deployment classes, and stable/staging channels. It shows version, trust, remote, and verified-cache states independently. **Download & Verify** resolves only trusted logical catalog IDs and reuses the signed distribution pipeline; **Generate Installation Plan** reuses the existing planner and still stops before execution. The platform is local-first and includes no telemetry, analytics, or third-party tracking.
+
 Documentation localization convention: `README.md` is the canonical English document. A future `README_TR.md` will be the maintained Turkish user-facing counterpart after its translation-quality gate is defined; no placeholder translation is kept.
 
 ## DevMode Keeper
@@ -106,20 +108,20 @@ Production app IDs are hard-blocked with no override. No scheduler or background
 - Logs redact connection addresses and credential-like values.
 - Package installation, uninstallation, storage reset, rooting, privilege escalation, and firmware mutation are outside DevMode Keeper.
 
-See [Threat Model](docs/security/THREAT_MODEL.md), [Package Security](docs/security/PACKAGE_SECURITY.md), [Release Metadata](docs/architecture/RELEASE_METADATA.md), [Approval-Gated Installer](docs/architecture/APPROVAL_GATED_INSTALLER.md), [Device Manager](docs/architecture/DEVICE_MANAGER.md), [Package Inspector](docs/architecture/PACKAGE_INSPECTOR.md), and [Installation Planner](docs/architecture/INSTALLATION_PLANNER.md).
+See [Threat Model](docs/security/THREAT_MODEL.md), [Catalog Service](docs/architecture/CATALOG_SERVICE.md), [Update Evaluation](docs/architecture/UPDATE_EVALUATION.md), [Package Security](docs/security/PACKAGE_SECURITY.md), [Release Metadata](docs/architecture/RELEASE_METADATA.md), [Artifact Distribution](docs/architecture/ARTIFACT_DISTRIBUTION.md), [Approval-Gated Installer](docs/architecture/APPROVAL_GATED_INSTALLER.md), [Device Manager](docs/architecture/DEVICE_MANAGER.md), [Package Inspector](docs/architecture/PACKAGE_INSPECTOR.md), and [Installation Planner](docs/architecture/INSTALLATION_PLANNER.md).
 
 ## Roadmap
 
 1. DevMode Keeper CLI and rootless device core.
 2. Local Device Manager and verified installer.
-3. Signed catalog and release/package registry.
-4. Local Web Manager MVP (read-only inspection and planning).
+3. Signed catalog, release/package registry, and update intelligence.
+4. Local Web Manager (read-only inspection, verified fetch, and planning).
 5. TV Store / launcher.
 6. Optional user-controlled scheduling after a separate acceptance milestone.
 
 ## Contributions
 
-The repository begins with a strict, clean TypeScript baseline. Changes should preserve rootless boundaries, add tests for process behavior, and keep external product repositories independent. Deployment and release automation are intentionally not included yet.
+The repository begins with a strict, clean TypeScript baseline. Changes should preserve rootless boundaries, add tests for process behavior, and keep external product repositories independent. Persistent staging-key operations and CI release publication remain future work; production signing/deployment is not authorized.
 
 ## License
 

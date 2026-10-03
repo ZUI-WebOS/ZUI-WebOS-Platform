@@ -73,6 +73,22 @@ The Web Manager is a loopback-only control-plane view. Browser content is untrus
 | Secret or stack disclosure                                    | Device addresses and registry credentials are excluded from DTOs; receipts are projected onto an explicit allow-list; errors return stable code/message/action without a stack.                                                                  |
 | Cross-user access on a shared host                            | Loopback limits network reach but is not an OS-user authentication boundary. Per-user binding/authentication is deferred and must precede broader or multi-user exposure.                                                                        |
 
+## Catalog and update intelligence extension
+
+Catalog metadata and browser selections are untrusted inputs. The backend, not the frontend, remains authoritative for identity, compatibility, trust, availability, cache verification, and policy.
+
+| Threat                                       | Control                                                                                                                                                                                                         |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Malicious catalog ID or path traversal       | Logical IDs are syntax-validated and resolved only within schema-validated registry/release data; unknown and path-shaped IDs fail closed.                                                                      |
+| Malicious release metadata                   | Product/release schemas, repository identity agreement, App ID/version/deployment checks, signed-manifest verification, and existing planner policy remain independent gates.                                   |
+| Arbitrary download URL/repository injection  | Fetch requests accept only product, release, and artifact IDs. URLs, destinations, paths, repositories, and commands are rejected. The backend resolves the allow-listed source.                                |
+| Cache poisoning or stale trust               | Every catalog cache projection and catalog-to-plan request reuses `ArtifactDistributionService.verifyCached`, including current signing-key lifecycle/scope, signature, hash, size, App ID, and version checks. |
+| Untrusted remote release elevated to trusted | GitHub provider evidence supplies availability/draft state only. Provider failure is unknown; remote presence never creates signature trust.                                                                    |
+| XSS through product/release metadata         | Browser DTOs contain data rather than HTML; React escapes text; CSP remains restrictive; arbitrary remote HTML/SVG icons are not rendered.                                                                      |
+| Frontend-generated trust or policy           | The browser sends selections only. Catalog Service and existing backend planner compute trust, comparisons, and policy.                                                                                         |
+| Production/staging confusion                 | Candidate selection requires exact product, App ID, deployment class, and compatible channel. Staging is never compared as a stable production update.                                                          |
+| Local activity used as telemetry             | No analytics, tracking, or telemetry endpoint exists; current catalog state and actions remain local to the host.                                                                                               |
+
 ## Trust assumptions
 
 The locally installed LG webOS CLI and the device registry are trusted user-managed dependencies. A registered alias does not prove reachability. A successful extension launch marker plus a separate post-command connectivity check proves command-level acceptance, not the exact resulting expiry.
