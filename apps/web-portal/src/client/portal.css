@@ -1,0 +1,254 @@
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 230px 1fr;
+}
+.shell aside {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 24px 16px;
+  border-right: 1px solid var(--line);
+  background: rgba(8, 12, 19, 0.92);
+  display: flex;
+  flex-direction: column;
+}
+.brand {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 0 8px 24px;
+}
+.brand > span {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  font-weight: 900;
+  font-size: 1.25rem;
+}
+.brand div {
+  display: grid;
+}
+.brand small {
+  color: var(--muted);
+}
+nav {
+  display: grid;
+  gap: 5px;
+}
+nav button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  padding: 11px 13px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+nav button:hover,
+nav button.active {
+  background: var(--surface2);
+  color: var(--text);
+}
+aside footer {
+  margin-top: auto;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.pulse {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  margin-right: 7px;
+}
+main {
+  padding: 36px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+}
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+.hero h1 {
+  font-size: 2.25rem;
+  margin: 5px 0;
+}
+.hero p {
+  color: var(--muted);
+  margin: 0;
+}
+.eyebrow {
+  font-size: 0.72rem !important;
+  color: var(--cyan) !important;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.span-2 {
+  grid-column: span 2;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.device-row,
+.device-card {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 4px;
+  cursor: pointer;
+}
+.device-row span {
+  display: grid;
+  text-align: left;
+}
+.device-row small {
+  color: var(--muted);
+}
+.device-card {
+  background: rgba(9, 13, 20, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 17px;
+}
+.big-status {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin: 10px 0;
+}
+.table-wrap {
+  overflow: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+}
+th,
+td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--line);
+}
+code {
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 0.78rem;
+  color: #bae6fd;
+  overflow-wrap: anywhere;
+}
+.release,
+.inspection,
+.plan {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 14px;
+}
+.upload {
+  display: grid;
+  gap: 12px;
+  padding: 28px;
+  border: 1px dashed #3d5478;
+  border-radius: 12px;
+  color: var(--muted);
+}
+.upload input {
+  color: var(--text);
+}
+.notice,
+.error {
+  padding: 14px;
+  border-radius: 10px;
+  margin-top: 16px;
+}
+.notice {
+  background: #33270a;
+  border: 1px solid #715814;
+  color: #fde68a;
+}
+.error {
+  display: grid;
+  gap: 6px;
+  background: #3b1420;
+  border: 1px solid #7f2840;
+  color: #fecdd3;
+}
+.loading {
+  color: var(--muted);
+}
+select {
+  display: block;
+  margin-top: 8px;
+  padding: 9px;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+@media (max-width: 850px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .shell aside {
+    position: static;
+    height: auto;
+  }
+  .shell nav {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .shell aside footer {
+    display: none;
+  }
+  main {
+    padding: 20px;
+  }
+  .metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .span-2 {
+    grid-column: auto;
+  }
+}
+@media (max-width: 520px) {
+  .shell nav {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+  .hero h1 {
+    font-size: 1.7rem;
+  }
+}
