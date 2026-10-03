@@ -8,25 +8,6 @@
   "releaseRef": "integration-0.8.4",
   "artifacts": [
     {
-      "artifactId": "zui-youtube-webos-0.8.4-staging",
-      "filename": "com.zui.webos.youtube.staging_0.8.4_all.ipk",
-      "appId": "com.zui.webos.youtube.staging",
-      "version": "0.8.4",
-      "deploymentClass": "staging",
-      "size": 94208,
-      "hash": {
-        "algorithm": "sha256",
-        "digest": "816ECFBEBC234443B4E492A9EE7472DDCBB1783CF09B5100BA9B321A882A66F4"
-      },
-      "source": {
-        "type": "LOCAL_VERIFIED",
-        "repository": "https://github.com/ZUI-WebOS/ZUI-YouTube-WebOS",
-        "releaseRef": "integration-0.8.4",
-        "assetName": "com.zui.webos.youtube.staging_0.8.4_all.ipk",
-        "evidencePath": ".migration-rehearsal/youtube-integration-0.8.4/artifacts/integration-0.8.4/staging/com.zui.webos.youtube.staging_0.8.4_all.ipk"
-      }
-    },
-    {
       "artifactId": "zui-youtube-webos-0.8.4-production",
       "filename": "youtube.leanback.v4_0.8.4_all.ipk",
       "appId": "youtube.leanback.v4",

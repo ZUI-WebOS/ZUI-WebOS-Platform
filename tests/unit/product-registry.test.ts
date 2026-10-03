@@ -42,7 +42,7 @@ describe("product registry", () => {
     const releaseValue: unknown = JSON.parse(
       await readFile(
         new URL(
-          "../../repository/releases/zui-youtube-webos/0.8.4.json",
+          "../../repository/releases/zui-youtube-webos/0.8.4-staging.json",
           import.meta.url,
         ),
         "utf8",

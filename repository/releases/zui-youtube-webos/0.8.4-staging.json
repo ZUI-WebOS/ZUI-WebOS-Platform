@@ -1,0 +1,31 @@
+{
+  "$schema": "../../schemas/release-record.schema.json",
+  "schemaVersion": 1,
+  "productId": "zui-youtube-webos",
+  "version": "0.8.4",
+  "channel": "staging",
+  "sourceRepository": "https://github.com/ZUI-WebOS/ZUI-YouTube-WebOS",
+  "releaseRef": "zui-staging-0.8.4-acceptance",
+  "sourceCommit": "ab05d0d220fc57c5c3a5b85f3f5423a1ccf940c2",
+  "artifacts": [
+    {
+      "artifactId": "zui-youtube-webos-0.8.4-staging",
+      "filename": "com.zui.webos.youtube.staging_0.8.4_all.ipk",
+      "appId": "com.zui.webos.youtube.staging",
+      "version": "0.8.4",
+      "deploymentClass": "staging",
+      "size": 94208,
+      "hash": {
+        "algorithm": "sha256",
+        "digest": "816ECFBEBC234443B4E492A9EE7472DDCBB1783CF09B5100BA9B321A882A66F4"
+      },
+      "source": {
+        "type": "GITHUB_RELEASE",
+        "repository": "https://github.com/ZUI-WebOS/ZUI-YouTube-WebOS",
+        "releaseRef": "zui-staging-0.8.4-acceptance",
+        "assetName": "com.zui.webos.youtube.staging_0.8.4_all.ipk",
+        "canonicalAssetUrl": "https://github.com/ZUI-WebOS/ZUI-YouTube-WebOS/releases/tag/zui-staging-0.8.4-acceptance"
+      }
+    }
+  ]
+}

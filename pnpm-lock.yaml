@@ -37,6 +37,9 @@ importers:
       "@zui-webos/catalog-contracts":
         specifier: workspace:*
         version: link:packages/catalog-contracts
+      "@zui-webos/catalog-service":
+        specifier: workspace:*
+        version: link:packages/catalog-service
       "@zui-webos/installation-planner":
         specifier: workspace:*
         version: link:packages/installation-planner
@@ -125,6 +128,9 @@ importers:
       "@zui-webos/catalog-contracts":
         specifier: workspace:*
         version: link:../../packages/catalog-contracts
+      "@zui-webos/catalog-service":
+        specifier: workspace:*
+        version: link:../../packages/catalog-service
       "@zui-webos/design-system":
         specifier: workspace:*
         version: link:../../packages/design-system
@@ -199,6 +205,19 @@ importers:
       "@types/node":
         specifier: "catalog:"
         version: 24.19.0
+      typescript:
+        specifier: "catalog:"
+        version: 5.9.3
+
+  packages/catalog-service:
+    dependencies:
+      "@zui-webos/catalog-contracts":
+        specifier: workspace:*
+        version: link:../catalog-contracts
+      "@zui-webos/shared-types":
+        specifier: workspace:*
+        version: link:../shared-types
+    devDependencies:
       typescript:
         specifier: "catalog:"
         version: 5.9.3

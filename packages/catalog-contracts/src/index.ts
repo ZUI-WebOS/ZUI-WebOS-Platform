@@ -22,7 +22,7 @@ export interface ProductRegistryEntry {
 
 export type TrustLevel =
   "UNVERIFIED" | "REGISTRY_MATCH" | "REPOSITORY_PINNED_HASH" | "SIGNED";
-export type ReleaseChannel = "stable" | "staging";
+export type ReleaseChannel = "stable" | "staging" | "beta";
 export type ArtifactSourceType =
   "LOCAL_VERIFIED" | "GITHUB_RELEASE" | "EXTERNAL";
 
@@ -47,6 +47,7 @@ export interface ProductRelease {
   readonly channel: ReleaseChannel;
   readonly sourceRepository: `https://github.com/${string}/${string}`;
   readonly releaseRef?: string;
+  readonly sourceCommit?: string;
   readonly artifacts: readonly ReleaseArtifact[];
 }
 
@@ -270,13 +271,17 @@ export function validateReleaseRecords(
       errors.push(`Release '${release.productId}' has an invalid version.`);
       continue;
     }
-    const releaseKey = `${release.productId}@${release.version}`;
+    const releaseKey = `${release.productId}@${release.version}:${String(release.channel)}`;
     if (releaseKeys.has(releaseKey))
       errors.push(`Duplicate release '${releaseKey}'.`);
     releaseKeys.add(releaseKey);
     if (
-      (release.channel !== "stable" && release.channel !== "staging") ||
+      (release.channel !== "stable" &&
+        release.channel !== "staging" &&
+        release.channel !== "beta") ||
       release.sourceRepository !== product.repository ||
+      (release.sourceCommit !== undefined &&
+        !/^[a-f0-9]{40}$/u.test(release.sourceCommit)) ||
       !Array.isArray(release.artifacts)
     ) {
       errors.push(`Release '${releaseKey}' has invalid source or artifacts.`);
@@ -348,6 +353,99 @@ export function validateReleaseRecords(
     }
   }
   return { valid: errors.length === 0, errors };
+}
+
+export type UpdateStatus =
+  | "UP_TO_DATE"
+  | "UPDATE_AVAILABLE"
+  | "AHEAD_OF_CATALOG"
+  | "NOT_INSTALLED"
+  | "VERSION_UNKNOWN"
+  | "NO_COMPATIBLE_RELEASE";
+export type CatalogTrustState =
+  | "SIGNED"
+  | "REPOSITORY_PINNED_HASH"
+  | "REGISTRY_MATCH"
+  | "UNVERIFIED"
+  | "REVOKED"
+  | "INVALID_SIGNATURE";
+export type RemoteAvailability =
+  "REMOTE_AVAILABLE" | "REMOTE_UNAVAILABLE" | "REMOTE_UNKNOWN";
+export type CacheAvailability =
+  "CACHED_VERIFIED" | "CACHE_INVALID" | "NOT_CACHED";
+export type UpdatePolicyStatus = "PLAN_AVAILABLE" | "BLOCK";
+
+export interface CatalogArtifact {
+  readonly artifactId: string;
+  readonly filename: string;
+  readonly appId: string;
+  readonly version: string;
+  readonly deploymentClass: DeploymentClass;
+  readonly size: number;
+  readonly sha256: string;
+  readonly trustState: CatalogTrustState;
+  readonly signingKeyId: string | null;
+  readonly remoteAvailability: RemoteAvailability;
+  readonly cacheAvailability: CacheAvailability;
+  readonly verifiedAt: string | null;
+}
+export interface CatalogRelease {
+  readonly releaseId: string;
+  readonly productId: string;
+  readonly version: string;
+  readonly channel: ReleaseChannel;
+  readonly repository: string;
+  readonly sourceCommit: string | null;
+  readonly draft: boolean | null;
+  readonly prerelease: boolean | null;
+  readonly published: boolean | null;
+  readonly trustState: CatalogTrustState;
+  readonly signingKeyId: string | null;
+  readonly artifacts: readonly CatalogArtifact[];
+}
+export interface CatalogProduct {
+  readonly productId: string;
+  readonly displayName: string;
+  readonly description: string | null;
+  readonly repository: string;
+  readonly appIdentities: readonly ProductAppIdentity[];
+  readonly rootlessCompatible: boolean;
+  readonly releases: readonly CatalogRelease[];
+}
+export interface InstalledProductState {
+  readonly installed: boolean;
+  readonly appId: string;
+  readonly version: string | null;
+  readonly deploymentClass: DeploymentClass;
+  readonly channel: ReleaseChannel;
+}
+export interface AvailableProductState {
+  readonly releaseId: string | null;
+  readonly version: string | null;
+  readonly channel: ReleaseChannel;
+  readonly trustState: CatalogTrustState;
+  readonly artifactId: string | null;
+}
+export interface ProductUpdateComparison {
+  readonly productId: string;
+  readonly displayName: string;
+  readonly appId: string;
+  readonly installed: InstalledProductState;
+  readonly available: AvailableProductState;
+  readonly versionStatus: UpdateStatus;
+  readonly trustStatus: CatalogTrustState;
+  readonly policyStatus: UpdatePolicyStatus;
+}
+export interface CatalogSummary {
+  readonly managedProducts: number;
+  readonly updatesAvailable: number;
+  readonly verifiedArtifacts: number;
+}
+export interface Catalog {
+  readonly products: readonly CatalogProduct[];
+  readonly comparisons: readonly ProductUpdateComparison[];
+  readonly summary: CatalogSummary;
+  readonly generatedAt: string;
 }
 
 export function verifyArtifactMetadata(
