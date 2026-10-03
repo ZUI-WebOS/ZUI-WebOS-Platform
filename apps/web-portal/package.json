@@ -13,6 +13,7 @@
   "dependencies": {
     "@zui-webos/artifact-distribution": "workspace:*",
     "@zui-webos/catalog-contracts": "workspace:*",
+    "@zui-webos/catalog-service": "workspace:*",
     "@zui-webos/design-system": "workspace:*",
     "@zui-webos/installation-planner": "workspace:*",
     "@zui-webos/installer-service": "workspace:*",

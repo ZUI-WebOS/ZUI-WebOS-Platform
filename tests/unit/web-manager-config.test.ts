@@ -75,4 +75,72 @@ describe("Web Manager port configuration", () => {
     );
     expect(stderr).toContain("set ZUI_WEB_MANAGER_PORT");
   });
+
+  it("serves catalog contracts and rejects arbitrary download URLs", async () => {
+    const probe = createServer();
+    probe.listen(0, WEB_MANAGER_HOST);
+    await once(probe, "listening");
+    const address = probe.address();
+    if (address === null || typeof address === "string")
+      throw new Error("Test listener did not expose a TCP port.");
+    await new Promise<void>((resolve, reject) => {
+      probe.close((error) => (error === undefined ? resolve() : reject(error)));
+    });
+
+    const child = spawn(process.execPath, ["apps/web-portal/dist/server.js"], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        ZUI_WEB_MANAGER_MOCK: "1",
+        ZUI_WEB_MANAGER_PORT: String(address.port),
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let output = "";
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      output += chunk;
+    });
+    const deadline = Date.now() + 5_000;
+    while (!output.includes("listening") && Date.now() < deadline)
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(output).toContain(`127.0.0.1:${String(address.port)}`);
+
+    try {
+      const base = `http://127.0.0.1:${String(address.port)}`;
+      const headers = {
+        Host: `127.0.0.1:${String(address.port)}`,
+        Origin: base,
+      };
+      const catalog = await fetch(`${base}/api/catalog`, { headers });
+      expect(catalog.status).toBe(200);
+      const detail = await fetch(
+        `${base}/api/catalog/products/zui-youtube-webos/releases/zui-staging-0.8.4-acceptance`,
+        { headers },
+      );
+      expect(detail.status).toBe(200);
+      const rejected = await fetch(`${base}/api/catalog/artifacts/fetch`, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+          "X-ZUI-Request": "web-manager",
+        },
+        body: JSON.stringify({
+          productId: "zui-youtube-webos",
+          releaseId: "zui-staging-0.8.4-acceptance",
+          artifactId: "zui-youtube-webos-0.8.4-staging",
+          url: "https://untrusted.invalid/package.ipk",
+        }),
+      });
+      expect(rejected.status).toBe(400);
+      await expect(rejected.json()).resolves.toMatchObject({
+        ok: false,
+        error: { code: "INVALID_ARGUMENT" },
+      });
+    } finally {
+      child.kill();
+      await once(child, "exit");
+    }
+  });
 });

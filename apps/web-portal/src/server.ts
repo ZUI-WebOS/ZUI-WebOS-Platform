@@ -15,7 +15,12 @@ import {
   portInUseMessage,
   type WebManagerConfig,
 } from "./config.js";
-import type { ApiResult, PlanRequest } from "./contracts.js";
+import type {
+  ApiResult,
+  CatalogPlanRequest,
+  CatalogSelectionRequest,
+  PlanRequest,
+} from "./contracts.js";
 
 const mock = process.env.ZUI_WEB_MANAGER_MOCK === "1";
 const api = new WebManagerApi(mock);
@@ -118,6 +123,30 @@ async function route(
     json(response, 200, { ok: true, data: await api.catalog() });
     return;
   }
+  const productMatch = /^\/api\/catalog\/products\/([^/]+)$/u.exec(
+    url.pathname,
+  );
+  if (request.method === "GET" && productMatch !== null) {
+    json(response, 200, {
+      ok: true,
+      data: await api.catalogProduct(decodeURIComponent(productMatch[1]!)),
+    });
+    return;
+  }
+  const releaseMatch =
+    /^\/api\/catalog\/products\/([^/]+)\/releases\/([^/]+)$/u.exec(
+      url.pathname,
+    );
+  if (request.method === "GET" && releaseMatch !== null) {
+    json(response, 200, {
+      ok: true,
+      data: await api.catalogRelease(
+        decodeURIComponent(releaseMatch[1]!),
+        decodeURIComponent(releaseMatch[2]!),
+      ),
+    });
+    return;
+  }
   if (request.method === "GET" && url.pathname === "/api/cache") {
     json(response, 200, { ok: true, data: await api.cache() });
     return;
@@ -159,6 +188,62 @@ async function route(
       ok: true,
       data: await api.plan({
         inspectionId: value.inspectionId,
+        device: value.device,
+      }),
+    });
+    return;
+  }
+  if (
+    request.method === "POST" &&
+    url.pathname === "/api/catalog/artifacts/fetch"
+  ) {
+    const value = JSON.parse(
+      (await body(request, 64 * 1024)).toString("utf8"),
+    ) as Partial<CatalogSelectionRequest> & Record<string, unknown>;
+    if (
+      typeof value.productId !== "string" ||
+      typeof value.releaseId !== "string" ||
+      typeof value.artifactId !== "string" ||
+      "url" in value ||
+      "path" in value ||
+      "destination" in value
+    )
+      throw new PlatformError(
+        "INVALID_ARGUMENT",
+        "Catalog fetch requires trusted logical identifiers only.",
+      );
+    json(response, 200, {
+      ok: true,
+      data: await api.fetchCatalogArtifact({
+        productId: value.productId,
+        releaseId: value.releaseId,
+        artifactId: value.artifactId,
+      }),
+    });
+    return;
+  }
+  if (request.method === "POST" && url.pathname === "/api/catalog/plans") {
+    const value = JSON.parse(
+      (await body(request, 64 * 1024)).toString("utf8"),
+    ) as Partial<CatalogPlanRequest> & Record<string, unknown>;
+    if (
+      typeof value.productId !== "string" ||
+      typeof value.releaseId !== "string" ||
+      typeof value.artifactId !== "string" ||
+      typeof value.device !== "string" ||
+      "url" in value ||
+      "path" in value
+    )
+      throw new PlatformError(
+        "INVALID_ARGUMENT",
+        "Catalog plan requires trusted logical identifiers only.",
+      );
+    json(response, 200, {
+      ok: true,
+      data: await api.planCatalog({
+        productId: value.productId,
+        releaseId: value.releaseId,
+        artifactId: value.artifactId,
         device: value.device,
       }),
     });
