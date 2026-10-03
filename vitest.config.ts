@@ -1,8 +1,9 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  esbuild: { jsx: "automatic", jsxImportSource: "react" },
   test: {
     coverage: { enabled: false },
-    include: ['tests/unit/**/*.test.ts'],
+    include: ["tests/unit/**/*.test.{ts,tsx}"],
   },
 });

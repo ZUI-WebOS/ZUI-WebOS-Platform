@@ -1,0 +1,35 @@
+{
+  "name": "@zui-webos/web-portal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p tsconfig.server.json && vite build",
+    "type-check": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json --noEmit",
+    "start": "node dist/server.js",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@zui-webos/artifact-distribution": "workspace:*",
+    "@zui-webos/catalog-contracts": "workspace:*",
+    "@zui-webos/design-system": "workspace:*",
+    "@zui-webos/installation-planner": "workspace:*",
+    "@zui-webos/installer-service": "workspace:*",
+    "@zui-webos/package-inspector": "workspace:*",
+    "@zui-webos/shared-types": "workspace:*",
+    "@zui-webos/signed-release": "workspace:*",
+    "@zui-webos/webos-client": "workspace:*",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "jsdom": "^27.0.0",
+    "typescript": "catalog:",
+    "vite": "^7.1.7"
+  }
+}

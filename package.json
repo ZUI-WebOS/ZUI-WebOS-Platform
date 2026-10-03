@@ -14,9 +14,11 @@
     "type-check": "pnpm -r --if-present type-check",
     "test": "pnpm build && vitest run",
     "lint": "pnpm build && eslint apps packages tests",
-    "format:check": "prettier --check \"apps/**/*.ts\" \"packages/**/*.ts\" \"tests/**/*.ts\" \"*.{json,yaml,yml}\" \".github/**/*.{yaml,yml}\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,css,html,json}\" \"packages/**/*.{ts,tsx,css,json}\" \"tests/**/*.{ts,tsx}\" \"*.{ts,json,yaml,yml}\" \".github/**/*.{yaml,yml}\"",
     "verify": "pnpm format:check && pnpm lint && pnpm type-check && pnpm test && pnpm build",
-    "zui-webos": "pnpm --filter @zui-webos/devmode-keeper start"
+    "zui-webos": "pnpm --filter @zui-webos/devmode-keeper start",
+    "web": "pnpm --filter @zui-webos/web-portal build && pnpm --filter @zui-webos/web-portal start",
+    "web:mock": "pnpm --filter @zui-webos/web-portal build && cross-env ZUI_WEB_MANAGER_MOCK=1 pnpm --filter @zui-webos/web-portal start"
   },
   "devDependencies": {
     "@zui-webos/catalog-contracts": "workspace:*",
@@ -29,8 +31,15 @@
     "@zui-webos/webos-client": "workspace:*",
     "@eslint/js": "^9.36.0",
     "@types/node": "^24.5.2",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "cross-env": "^10.1.0",
     "eslint": "^9.36.0",
     "prettier": "^3.6.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "jsdom": "^27.0.0",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.44.1",
     "vitest": "4.1.11"

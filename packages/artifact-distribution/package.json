@@ -4,8 +4,23 @@
   "private": true,
   "type": "module",
   "license": "MIT",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "scripts": { "build": "tsc -p tsconfig.json", "type-check": "tsc -p tsconfig.json" },
-  "dependencies": { "@zui-webos/package-inspector": "workspace:*", "@zui-webos/signed-release": "workspace:*", "@zui-webos/webos-client": "workspace:*" },
-  "devDependencies": { "@types/node": "catalog:", "typescript": "catalog:" }
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@zui-webos/package-inspector": "workspace:*",
+    "@zui-webos/signed-release": "workspace:*",
+    "@zui-webos/webos-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
 }
