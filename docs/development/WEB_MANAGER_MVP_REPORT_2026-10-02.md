@@ -83,10 +83,10 @@ The captures contain aliases and public application/release metadata, but no IP 
 
 ## 18. CI/CodeQL
 
-Local acceptance passed frozen install, format, lint, type-check, **68/68 tests**, build, `git diff --check`, targeted secret-pattern review, and `git fsck --full`. Final GitHub CI and CodeQL run URLs and results are recorded below after the normal push.
+Local acceptance passed frozen install, format, lint, type-check, **68/68 tests**, build, `git diff --check`, targeted secret-pattern review, and `git fsck --full`. Implementation head `db99040fb1245ec880b0b6de172a9daa6df13b99` passed both remote gates.
 
-- CI: pending final push
-- CodeQL: pending final push
+- CI: [run 37084170930 — PASS](https://github.com/ZUI-WebOS/ZUI-WebOS-Platform/actions/runs/37084170930)
+- CodeQL: [run 37084170933 — PASS](https://github.com/ZUI-WebOS/ZUI-WebOS-Platform/actions/runs/37084170933)
 
 ## 19. Git commits
 
@@ -95,7 +95,10 @@ Implementation is split into normal reviewable commits for the local API, UI/des
 1. `0aa6376` — loopback Web Manager API, contracts, mock fixtures, and workspace tooling
 2. `3897024` — React manager interface and shared ZUI design system
 3. `31f0652` — API/UI contract, locale, trust, error, receipt, and plan-fixture tests
-4. documentation, threat model, and screenshot evidence (this report commit)
+4. `3de3d75` — documentation, threat model, and screenshot evidence
+5. `db99040` — deterministic LF rules for new browser asset extensions
+
+This report-only closeout follows the validated implementation head and does not alter runtime or test code.
 
 ## 20. Remaining risks
 
