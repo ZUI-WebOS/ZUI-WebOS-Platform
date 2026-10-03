@@ -6,15 +6,15 @@ ZUI webOS Platform is a rootless management layer and developer-tooling monorepo
 
 ## Current scope
 
-Production-quality local modules now include **ZUI DevMode Keeper**, the read-only **Device Manager Core**, the **Verified Package Inspector**, and the non-executing **Installation Planner**.
+Production-quality local modules now include **ZUI DevMode Keeper**, the read-only **Device Manager Core**, the **Verified Package Inspector**, the approval-gated installer service, signed artifact distribution, and the local **ZUI Web Manager**. The Web Manager can inspect and plan, but intentionally cannot execute an installation or extend Developer Mode.
 
 The platform is also the management layer for future device, catalog, installer, release-registry, web-manager, and TV-store components. Product source remains in independent repositories:
 
-| Product | Application ID | Repository |
-|---|---|---|
-| ZUI IPTV Player | `com.zui.player` | [ZUI-WebOS/ZUI-IPTV-Player](https://github.com/ZUI-WebOS/ZUI-IPTV-Player) |
-| ZUI YouTube for webOS | `youtube.leanback.v4` | [ZUI-WebOS/ZUI-YouTube-WebOS](https://github.com/ZUI-WebOS/ZUI-YouTube-WebOS) |
-| ZUI YouTube staging | `com.zui.webos.youtube.staging` | same external product repository |
+| Product               | Application ID                  | Repository                                                                    |
+| --------------------- | ------------------------------- | ----------------------------------------------------------------------------- |
+| ZUI IPTV Player       | `com.zui.player`                | [ZUI-WebOS/ZUI-IPTV-Player](https://github.com/ZUI-WebOS/ZUI-IPTV-Player)     |
+| ZUI YouTube for webOS | `youtube.leanback.v4`           | [ZUI-WebOS/ZUI-YouTube-WebOS](https://github.com/ZUI-WebOS/ZUI-YouTube-WebOS) |
+| ZUI YouTube staging   | `com.zui.webos.youtube.staging` | same external product repository                                              |
 
 No product source is copied into this monorepo.
 
@@ -53,6 +53,17 @@ pnpm verify
 ```
 
 Individual gates are available as `pnpm lint`, `pnpm type-check`, `pnpm test`, `pnpm build`, and `pnpm format:check`.
+
+Start the real local Web Manager or its deterministic no-TV fixture mode:
+
+```powershell
+pnpm web
+pnpm web:mock
+```
+
+Both commands bind only to `http://127.0.0.1:4173`. The browser talks to a narrow local API that reuses the platform services; it has no generic command or filesystem endpoint. Uploaded IPKs are inspected but never executed from the UI.
+
+Documentation localization convention: `README.md` is the canonical English document. A future `README_TR.md` will be the maintained Turkish user-facing counterpart after its translation-quality gate is defined; no placeholder translation is kept.
 
 ## DevMode Keeper
 
@@ -102,7 +113,7 @@ See [Threat Model](docs/security/THREAT_MODEL.md), [Package Security](docs/secur
 1. DevMode Keeper CLI and rootless device core.
 2. Local Device Manager and verified installer.
 3. Signed catalog and release/package registry.
-4. Web management portal.
+4. Local Web Manager MVP (read-only inspection and planning).
 5. TV Store / launcher.
 6. Optional user-controlled scheduling after a separate acceptance milestone.
 

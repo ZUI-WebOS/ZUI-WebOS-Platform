@@ -20,11 +20,13 @@ The platform milestone does not change the IPTV repository.
 
 ## Platform
 
-- graphical Device Manager;
+- Web Manager upload-retention policy and user-controlled cleanup for opaque local inspection copies;
+- persistent read-only plan history (the MVP latest-plan view is process-memory only);
+- Turkish `README_TR.md` after a translation-quality and synchronization workflow is defined (`README.md` remains canonical);
 - opt-in Windows Task Scheduler/service wrapper for Keeper;
 - supported official expiry/status provider if LG exposes one;
 - cloud catalog and release registry;
 - local verified TV App Installer;
-- Web Management Portal;
+- Web Manager mutation milestone with a new threat review and explicit approval UX; install execution and Developer Mode extension remain deliberately absent;
 - TV Store / launcher;
 - artifact signing, SBOM, revocation, and rollback automation.
