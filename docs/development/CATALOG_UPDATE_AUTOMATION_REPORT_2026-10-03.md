@@ -104,7 +104,7 @@ Default binding remains `127.0.0.1:4273`; `ZUI_WEB_MANAGER_PORT` remains validat
 
 ## 24. CI/CodeQL
 
-`pnpm install --frozen-lockfile`, `pnpm verify`, `git diff --check`, `git fsck --full`, and the secret-pattern scan pass locally. Remote CI and CodeQL evidence will be recorded in the report-only closeout after the implementation push.
+`pnpm install --frozen-lockfile`, `pnpm verify`, `git diff --check`, `git fsck --full`, and the secret-pattern scan pass locally. Implementation/documentation HEAD `1613baa85dc68eadfe92a7962a119820304c96f1` passed [CI run 37087998280](https://github.com/ZUI-WebOS/ZUI-WebOS-Platform/actions/runs/37087998280) and [CodeQL run 37087998228](https://github.com/ZUI-WebOS/ZUI-WebOS-Platform/actions/runs/37087998228).
 
 ## 25. Git commits
 
@@ -112,9 +112,10 @@ Implementation commits:
 
 1. `e03bc28` — catalog/update contracts, service, metadata, and unit tests;
 2. `6e4508f` — trusted catalog API, artifact fetch/cache/plan integration, and API security tests;
-3. `34f454b` — catalog/update Web Manager UX, EN/TR additions, and UI tests.
+3. `34f454b` — catalog/update Web Manager UX, EN/TR additions, and UI tests;
+4. `1613baa` — architecture, security, acceptance report, and sanitized screenshots.
 
-All publication uses normal non-force pushes to `main`; no history rewrite is used.
+All publication uses normal non-force pushes to `main`; no history rewrite is used. A later report-only closeout commit does not change the validated implementation files.
 
 ## 26. Remaining risks
 
