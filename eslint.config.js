@@ -14,7 +14,10 @@ export default tseslint.config(
   ...tseslint.configs.recommendedTypeChecked,
   {
     ...tseslint.configs.disableTypeChecked,
-    files: ["apps/**/*.js", "packages/**/*.js"],
+    files: ["apps/**/*.{js,mjs}", "packages/**/*.{js,mjs}"],
+    languageOptions: {
+      globals: { console: "readonly", process: "readonly" },
+    },
   },
   {
     files: [

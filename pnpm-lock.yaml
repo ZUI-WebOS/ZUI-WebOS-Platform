@@ -132,6 +132,43 @@ importers:
         specifier: "catalog:"
         version: 5.9.3
 
+  apps/tv-store:
+    dependencies:
+      "@zui-webos/catalog-contracts":
+        specifier: workspace:*
+        version: link:../../packages/catalog-contracts
+      "@zui-webos/catalog-service":
+        specifier: workspace:*
+        version: link:../../packages/catalog-service
+      "@zui-webos/design-system":
+        specifier: workspace:*
+        version: link:../../packages/design-system
+      "@zui-webos/shared-types":
+        specifier: workspace:*
+        version: link:../../packages/shared-types
+      react:
+        specifier: ^19.1.1
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.1.1
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      "@types/react":
+        specifier: ^19.1.16
+        version: 19.3.0
+      "@types/react-dom":
+        specifier: ^19.1.9
+        version: 19.3.0(@types/react@19.3.0)
+      "@vitejs/plugin-react":
+        specifier: ^5.0.4
+        version: 5.2.0(vite@7.3.6(@types/node@24.19.0))
+      typescript:
+        specifier: "catalog:"
+        version: 5.9.3
+      vite:
+        specifier: ^7.1.7
+        version: 7.3.6(@types/node@24.19.0)
+
   apps/web-portal:
     dependencies:
       "@zui-webos/artifact-distribution":

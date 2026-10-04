@@ -1,0 +1,12 @@
+{
+  "id": "com.zui.webos.store.staging",
+  "version": "0.1.0",
+  "vendor": "ZUI-WebOS",
+  "type": "web",
+  "main": "index.html",
+  "title": "ZUI Store STAGING",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "transparent": false,
+  "disableBackHistoryAPI": true
+}

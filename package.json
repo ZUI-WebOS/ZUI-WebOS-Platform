@@ -17,7 +17,10 @@
     "format:check": "prettier --check \"apps/**/*.{ts,tsx,css,html,json}\" \"packages/**/*.{ts,tsx,css,json}\" \"tests/**/*.{ts,tsx}\" \"*.{ts,json,yaml,yml}\" \".github/**/*.{yaml,yml}\"",
     "verify": "pnpm format:check && pnpm lint && pnpm type-check && pnpm test && pnpm build",
     "web": "pnpm --filter @zui-webos/web-portal build && pnpm --filter @zui-webos/web-portal start",
-    "web:mock": "pnpm --filter @zui-webos/web-portal build && cross-env ZUI_WEB_MANAGER_MOCK=1 pnpm --filter @zui-webos/web-portal start"
+    "web:mock": "pnpm --filter @zui-webos/web-portal build && cross-env ZUI_WEB_MANAGER_MOCK=1 pnpm --filter @zui-webos/web-portal start",
+    "tv-store:dev": "cross-env VITE_ZUI_TV_STORE_MOCK=1 pnpm --filter @zui-webos/tv-store dev",
+    "tv-store:api:mock": "pnpm --filter @zui-webos/tv-store build && cross-env ZUI_TV_STORE_MOCK=1 pnpm --filter @zui-webos/tv-store start:api",
+    "tv-store:package": "cross-env VITE_ZUI_TV_STORE_MOCK=1 pnpm --filter @zui-webos/tv-store package:webos"
   },
   "devDependencies": {
     "@zui-webos/catalog-contracts": "workspace:*",
