@@ -79,6 +79,19 @@ describe("Windows CLI argument forwarding", () => {
       await readFile(new URL("../../package.json", import.meta.url), "utf8"),
     ) as { readonly scripts?: Record<string, unknown> };
     expect(packageJson.scripts?.["zui-webos"]).toBeUndefined();
+    const cliPackage = JSON.parse(
+      await readFile(
+        new URL("../../apps/devmode-keeper/package.json", import.meta.url),
+        "utf8",
+      ),
+    ) as { readonly bin?: Record<string, unknown> };
+    expect(cliPackage.bin?.["zui-webos"]).toBe("./bin/zui-webos.js");
+    await expect(
+      readFile(
+        new URL("../../apps/devmode-keeper/bin/zui-webos.js", import.meta.url),
+        "utf8",
+      ),
+    ).resolves.toContain('import("../dist/cli.js")');
   });
 
   it.runIf(process.platform === "win32")(

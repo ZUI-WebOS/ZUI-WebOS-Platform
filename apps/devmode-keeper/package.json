@@ -5,7 +5,7 @@
   "type": "module",
   "license": "MIT",
   "bin": {
-    "zui-webos": "./dist/cli.js"
+    "zui-webos": "./bin/zui-webos.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
