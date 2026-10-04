@@ -6,7 +6,7 @@ ZUI webOS Platform is a rootless management layer and developer-tooling monorepo
 
 ## Current scope
 
-Production-quality local modules now include **ZUI DevMode Keeper**, the read-only **Device Manager Core**, the **Verified Package Inspector**, the approval-gated installer service, signed artifact distribution, normalized catalog/update intelligence, and the local **ZUI Web Manager**. The Web Manager can inspect, download and verify trusted catalog artifacts, and generate read-only plans, but intentionally cannot execute an installation or extend Developer Mode.
+Production-quality local modules now include **ZUI DevMode Keeper**, the read-only **Device Manager Core**, the **Verified Package Inspector**, the approval-gated installer service, signed artifact distribution, operational staging release tooling, normalized catalog/update intelligence, and the local **ZUI Web Manager**. The Web Manager can inspect, download and verify trusted catalog artifacts, and generate read-only plans, but intentionally cannot execute an installation, sign/publish a release, or extend Developer Mode.
 
 The platform is also the management layer for future device, catalog, installer, release-registry, web-manager, and TV-store components. Product source remains in independent repositories:
 
@@ -45,6 +45,12 @@ The device control plane stays local. Cloud-facing services may publish signed m
 
 Do not place passwords, tokens, private keys, or device connection details in this repository. DevMode Keeper reuses the webOS CLI device registry and accepts a device alias such as `tv`; IP addresses are never hard-coded.
 
+Runtime cache and release data default to the process-neutral
+`%USERPROFILE%\.zui-webos\` root. Set `ZUI_WEBOS_DATA_DIR` to an absolute path
+to configure another shared location. `%LOCALAPPDATA%` is not used for these
+bytes because Windows may virtualize it for packaged applications; encrypted
+signing keys and user configuration keep their separately documented paths.
+
 ## Development
 
 ```powershell
@@ -73,17 +79,17 @@ Build once, then invoke the CLI through the workspace script:
 
 ```powershell
 pnpm build
-pnpm zui-webos devices list
-pnpm zui-webos devices inspect --device tv
-pnpm zui-webos apps list --device tv
-pnpm zui-webos apps inspect --device tv --app com.zui.player
-pnpm zui-webos package verify C:\path\to\application.ipk
-pnpm zui-webos install plan C:\path\to\application.ipk --device tv
-pnpm zui-webos devmode status --device tv
-pnpm zui-webos devmode extend --device tv --dry-run
-pnpm zui-webos devmode extend --device tv
-pnpm zui-webos devmode ensure --device tv
-pnpm zui-webos doctor --device tv
+pnpm exec zui-webos devices list
+pnpm exec zui-webos devices inspect --device tv
+pnpm exec zui-webos apps list --device tv
+pnpm exec zui-webos apps inspect --device tv --app com.zui.player
+pnpm exec zui-webos package verify C:\path\to\application.ipk
+pnpm exec zui-webos install plan C:\path\to\application.ipk --device tv
+pnpm exec zui-webos devmode status --device tv
+pnpm exec zui-webos devmode extend --device tv --dry-run
+pnpm exec zui-webos devmode extend --device tv
+pnpm exec zui-webos devmode ensure --device tv
+pnpm exec zui-webos doctor --device tv
 ```
 
 Add `--json` for machine-readable results. Configuration precedence is CLI arguments, environment variables, local user config, then defaults. The local config defaults to `%LOCALAPPDATA%\ZUI WebOS Platform\config.json` and must not contain secrets.
@@ -93,8 +99,8 @@ The public webOS CLI does not expose the resulting Developer Mode expiry timesta
 Package inspection never executes an IPK. Installation Plan V2 is canonical, expiring, and approval-bound. Only a repository-pinned staging artifact can become executable, and execution requires its exact digest:
 
 ```powershell
-pnpm zui-webos -- install plan C:\path\to\staging.ipk --device tv --save C:\path\to\plan.json
-pnpm zui-webos -- install execute C:\path\to\plan.json --approve <exact-plan-digest>
+pnpm exec zui-webos install plan C:\path\to\staging.ipk --device tv --save C:\path\to\plan.json
+pnpm exec zui-webos install execute C:\path\to\plan.json --approve <exact-plan-digest>
 ```
 
 Production app IDs are hard-blocked with no override. No scheduler or background service is installed by default.
@@ -110,6 +116,8 @@ Production app IDs are hard-blocked with no override. No scheduler or background
 
 See [Threat Model](docs/security/THREAT_MODEL.md), [Catalog Service](docs/architecture/CATALOG_SERVICE.md), [Update Evaluation](docs/architecture/UPDATE_EVALUATION.md), [Package Security](docs/security/PACKAGE_SECURITY.md), [Release Metadata](docs/architecture/RELEASE_METADATA.md), [Artifact Distribution](docs/architecture/ARTIFACT_DISTRIBUTION.md), [Approval-Gated Installer](docs/architecture/APPROVAL_GATED_INSTALLER.md), [Device Manager](docs/architecture/DEVICE_MANAGER.md), [Package Inspector](docs/architecture/PACKAGE_INSPECTOR.md), and [Installation Planner](docs/architecture/INSTALLATION_PLANNER.md).
 
+For staging operators, see [Staging Release Runbook](docs/operations/STAGING_RELEASE_RUNBOOK.md), [Signing Key Backup](docs/operations/SIGNING_KEY_BACKUP.md), and [Release Publisher](docs/architecture/RELEASE_PUBLISHER.md). Operational signing is local and staging-only; CI receives no long-lived private key.
+
 ## Roadmap
 
 1. DevMode Keeper CLI and rootless device core.
@@ -121,7 +129,7 @@ See [Threat Model](docs/security/THREAT_MODEL.md), [Catalog Service](docs/archit
 
 ## Contributions
 
-The repository begins with a strict, clean TypeScript baseline. Changes should preserve rootless boundaries, add tests for process behavior, and keep external product repositories independent. Persistent staging-key operations and CI release publication remain future work; production signing/deployment is not authorized.
+The repository begins with a strict, clean TypeScript baseline. Changes should preserve rootless boundaries, add tests for process behavior, and keep external product repositories independent. Production signing/deployment remains unauthorized. After operational staging release acceptance, the next product milestone is the visible user-facing TV Store MVP.
 
 ## License
 

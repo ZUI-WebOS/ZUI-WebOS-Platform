@@ -7,3 +7,7 @@
 5. Re-run cache verification. Cached bytes remain on disk, but a signature from a REVOKED key no longer qualifies as `SIGNED_TRUSTED` and cannot enter the signed installation path.
 
 Scopes are independent of lifecycle. `STAGING_RELEASE` must never be expanded to production as a shortcut. Production key creation and trusted-timestamp semantics require a separate milestone.
+
+Use `trust keys inspect <key-id>` to review public state. `trust keys lifecycle <key-id> <RETIRED|REVOKED> <new-file>` writes a non-overwriting proposed trust store for review; it does not silently mutate the active store. Never exercise rotation against the operational key merely as a test—use isolated fixtures.
+
+Rotation order is replacement generation and backup, public registration, staging signature verification, issuance cutover, then retirement of the old key. Revocation is immediate for compromise. Keep historical entries so old evidence has an auditable identity; trusted timestamps/archival validation remain a separate design problem.

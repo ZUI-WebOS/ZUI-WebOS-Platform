@@ -18,5 +18,4 @@ Plan approval is the exact uppercase SHA-256 digest of deterministic canonical J
 
 LG's CLI does not guarantee atomic rollback. Automatic uninstall is forbidden. Rollback is reported as available only when a prior trusted artifact is known and resolvable; this milestone reports unavailable or not required.
 
-Receipts are stored under `%LOCALAPPDATA%\ZUI-WebOS\receipts\` and contain no raw credentials.
-
+Receipts are stored under `%USERPROFILE%\.zui-webos\receipts\` by default (or the absolute `ZUI_WEBOS_DATA_DIR` root) and contain no raw credentials.

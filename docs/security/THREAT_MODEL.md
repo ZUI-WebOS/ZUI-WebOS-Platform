@@ -57,6 +57,22 @@ The platform is rootless and Developer Mode only. It does not patch firmware, mo
 | Replayed old signed release                          | Repository pin agreement, release identity/source commit binding, key lifecycle/time window, and explicit approval-plan expiry. Trusted timestamps and general anti-rollback policy remain future work. |
 | Repository compromise                                | Signed key trust is separate from repository metadata; disagreement blocks. A compromise of both repository and authorized private key remains out of scope.                                            |
 
+## Operational staging release extension
+
+| Threat                          | Control                                                                                                                                                               |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Private-key theft               | Encrypted PKCS#8 outside Git, no overwrite, restrictive OS ACL/mode, independent encrypted backup, and no CI/release upload.                                          |
+| Passphrase exposure             | Hidden TTY prompt by default; no argv/config/log/receipt value; process buffer zeroing; environment-input limitations documented.                                     |
+| Wrong repository release        | Product-registry allow-list and exact manifest/repository agreement before any GitHub mutation.                                                                       |
+| Artifact substitution           | Pinned metadata plus package inspector, SHA-256, size, App ID, version, deployment class, and signed manifest checks before and after upload.                         |
+| Source-commit spoofing          | Clean source checkout, exact HEAD, registered origin, explicit full SHA, expected-ref reachability, manifest binding, and GitHub target read-back.                    |
+| Partial GitHub upload           | Failure stops; release remains draft evidence, is never published/deleted automatically, and cannot enter catalog until exact read-back passes.                       |
+| Stale, retired, or revoked key  | Preparation requires ACTIVE lifecycle, valid time window, known public/private key ID, and `STAGING_RELEASE` scope.                                                   |
+| Staging key used for production | Pipeline rejects non-staging channel/deployment; signer scope verification and existing production install hard blocks remain independent.                            |
+| Malicious operator input        | Safe identifier grammar, registry resolution, exact approval ID, argv process execution with no shell, and non-overwriting filesystem writes.                         |
+| Release-name collision          | Local exclusive bundle creation and remote duplicate-tag refusal; existing releases are never selected as mutation targets.                                           |
+| CI/log leakage                  | CI uses public verification data/test keys only; the operational private key/passphrase is absent from GitHub Secrets, artifacts, argv, output, and repository files. |
+
 ## Local Web Manager extension
 
 The Web Manager is a loopback-only control-plane view. Browser content is untrusted even when it runs on the same host. The API therefore exposes typed platform operations rather than shell, arbitrary-path, or generic command primitives.
