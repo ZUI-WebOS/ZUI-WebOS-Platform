@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -66,7 +66,8 @@ describe("process-neutral runtime paths", () => {
           windowsHide: true,
         },
       );
-      expect(stdout.trim()).toBe(root);
+      expect(platformDataRoot({ ZUI_WEBOS_DATA_DIR: root })).toBe(root);
+      expect(await realpath(stdout.trim())).toBe(await realpath(root));
     },
   );
 });
