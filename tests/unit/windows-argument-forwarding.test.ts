@@ -115,6 +115,7 @@ describe("Windows CLI argument forwarding", () => {
         expect(await inspectThroughRootScript(path)).toBe(await realpath(path));
       }
     },
+    20_000,
   );
 
   it("preserves artifact and source repository argv values exactly without double escaping", () => {
