@@ -81,13 +81,18 @@ assets without clobbering, and repeats full read-back verification.
 ## 8. CI verification
 
 CI has no private key. It builds and verifies public release operations with
-fixture keys. On implementation commit `6f5664343deea7f61ddbdeb8f4bd9d8ded45d1eb`,
-CI run `37175106242` passed, including the explicit public staging-release
-test step. CodeQL run `37175106273` also passed.
+fixture keys. On final implementation/test commit
+`5a805f0ad013debb1f9eb9dea30e1be8b256ade3`, CI run `37175442684`
+passed, including the explicit public staging-release test step. CodeQL run
+`37175442682` also passed.
 
 Clean Windows CI found and drove two additional fixes: canonical comparison of
 8.3 versus long paths, and a committed bin launcher so `pnpm exec zui-webos`
 exists after a truly clean install before `dist` exists.
+
+The process-level PowerShell regression test was also given an explicit
+20-second timeout after a hosted runner exceeded Vitest's generic five-second
+unit-test default. Assertions and coverage were unchanged.
 
 ## 9. Secret-safety verification
 
@@ -171,8 +176,8 @@ Local final gates passed:
 
 ## 17. CI / CodeQL
 
-- CI: PASS — run `37175106242`
-- CodeQL: PASS — run `37175106273`
+- CI: PASS — run `37175442684`
+- CodeQL: PASS — run `37175442682`
 
 Earlier failed CI attempts are retained as evidence. They resulted in the two
 Windows clean-run fixes described above; they were not ignored or rerun without
@@ -184,6 +189,8 @@ code changes.
 - `576d4c6` — operations/security documentation and catalog registration
 - `2261c77` — canonical Windows runtime-path test
 - `6f56643` — clean-install CLI bin launcher
+- `9f17de7` — operational acceptance report
+- `5a805f0` — hosted Windows process-startup test allowance
 
 All pushes were normal non-force pushes to `main`.
 
