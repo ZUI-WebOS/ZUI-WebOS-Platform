@@ -6,7 +6,7 @@ ZUI webOS Platform is a rootless management layer and developer-tooling monorepo
 
 ## Current scope
 
-Production-quality local modules now include **ZUI DevMode Keeper**, the read-only **Device Manager Core**, the **Verified Package Inspector**, the approval-gated installer service, signed artifact distribution, operational staging release tooling, normalized catalog/update intelligence, and the local **ZUI Web Manager**. The Web Manager can inspect, download and verify trusted catalog artifacts, and generate read-only plans, but intentionally cannot execute an installation, sign/publish a release, or extend Developer Mode.
+Production-quality local modules now include **ZUI DevMode Keeper**, the read-only **Device Manager Core**, the **Verified Package Inspector**, the approval-gated installer service, signed artifact distribution, operational staging release tooling, normalized catalog/update intelligence, the local **ZUI Web Manager**, and the read-only **ZUI Store STAGING** TV application. The Web Manager can inspect, download and verify trusted catalog artifacts, and generate read-only plans, but intentionally cannot execute an installation, sign/publish a release, or extend Developer Mode. ZUI Store provides remote-first catalog browsing, product detail, trust, and update awareness; it performs no installation.
 
 The platform is also the management layer for future device, catalog, installer, release-registry, web-manager, and TV-store components. Product source remains in independent repositories:
 
@@ -71,6 +71,15 @@ Both commands bind only to `http://127.0.0.1:4273` by default. Set `ZUI_WEB_MANA
 
 The catalog correlates current installed inventory with exact registered App IDs, deployment classes, and stable/staging channels. It shows version, trust, remote, and verified-cache states independently. **Download & Verify** resolves only trusted logical catalog IDs and reuses the signed distribution pipeline; **Generate Installation Plan** reuses the existing planner and still stops before execution. The platform is local-first and includes no telemetry, analytics, or third-party tracking.
 
+Build or preview the remote-first ZUI Store staging application:
+
+```powershell
+pnpm tv-store:dev
+pnpm tv-store:package
+```
+
+The staging IPK uses `com.zui.webos.store.staging` and performs browse → inspect → update awareness only. Its deterministic mock catalog is normalized by the same catalog/update services as the platform. The separate TV API contract is read-only and versioned; it does not broaden the Web Manager or expose installation. See [TV Store architecture](docs/architecture/TV_STORE.md) and the [MVP report](docs/development/TV_STORE_MVP_REPORT_2026-10-04.md).
+
 Documentation localization convention: `README.md` is the canonical English document. A future `README_TR.md` will be the maintained Turkish user-facing counterpart after its translation-quality gate is defined; no placeholder translation is kept.
 
 ## DevMode Keeper
@@ -124,8 +133,8 @@ For staging operators, see [Staging Release Runbook](docs/operations/STAGING_REL
 2. Local Device Manager and verified installer.
 3. Signed catalog, release/package registry, and update intelligence.
 4. Local Web Manager (read-only inspection, verified fetch, and planning).
-5. TV Store / launcher.
-6. Optional user-controlled scheduling after a separate acceptance milestone.
+5. TV Store browse/detail/update-awareness MVP.
+6. Staging-only TV Store installation flow and public-beta preparation after separate acceptance.
 
 ## Contributions
 

@@ -105,6 +105,22 @@ Catalog metadata and browser selections are untrusted inputs. The backend, not t
 | Production/staging confusion                 | Candidate selection requires exact product, App ID, deployment class, and compatible channel. Staging is never compared as a stable production update.                                                          |
 | Local activity used as telemetry             | No analytics, tracking, or telemetry endpoint exists; current catalog state and actions remain local to the host.                                                                                               |
 
+## TV Store extension
+
+The TV application is an untrusted LAN client of a separate public-safe catalog projection. It does not share the Web Manager control plane, and the present MVP packages deterministic normalized data while the live LAN provider remains disabled.
+
+| Threat                               | Control                                                                                                                                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accidental broad LAN exposure        | Startup requires one explicit IPv4 interface; absent, wildcard, and IPv6-any hosts fail closed. Web Manager remains loopback-only.                                                                                        |
+| LAN enumeration or hostile client    | API has three versioned read resources, rejects queries, bounds URI/IDs, and allows no mutation method. Responses contain only public-safe catalog projection data.                                                       |
+| Arbitrary URL/path/command injection | Routes accept logical IDs only. There is no URL, path, shell, command, upload, file, cache, signing, approval, or installer parameter.                                                                                    |
+| Private data leakage                 | Explicit DTOs omit device addresses/aliases, filesystem and cache paths, private/signing-key paths, approval digests, raw inventory, credentials, and stacks. Only public-safe trust state and identifiers are projected. |
+| Malicious catalog XSS                | Catalog data is schema-validated and rendered as React text. No raw HTML insertion or remote HTML/SVG/icon URL is supported; all visual assets are bundled.                                                               |
+| Frontend trust spoofing              | `CatalogService`/`UpdateEvaluationService` supply exact trust/update semantics. Friendly labels preserve the raw enum on detail and never upgrade weaker trust.                                                           |
+| Staging/production confusion         | App IDs and deployment classes remain separate. Staging is persistently labelled and never rendered as production/stable.                                                                                                 |
+| Unexpected write route               | HTTP methods other than GET/HEAD/OPTIONS fail `405`; regression tests probe POST/PUT/PATCH/DELETE and `/install`. The TV UI has no mutation button.                                                                       |
+| Tracking or third-party disclosure   | The TV client contains no telemetry, analytics, ads, tracking, third-party scripts, or remote media.                                                                                                                      |
+
 ## Trust assumptions
 
 The locally installed LG webOS CLI and the device registry are trusted user-managed dependencies. A registered alias does not prove reachability. A successful extension launch marker plus a separate post-command connectivity check proves command-level acceptance, not the exact resulting expiry.
