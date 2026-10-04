@@ -3,27 +3,65 @@ import {
   type TvStoreCatalogResponse,
 } from "../contracts.js";
 import { mockTvStoreCatalog } from "../mock.js";
+import { isPrivateLanIpv4Address } from "../network-policy.js";
+
+declare const __ZUI_TV_STORE_CLIENT_CONFIG__: {
+  readonly mode: "DEMO" | "LIVE";
+  readonly apiBase: string | null;
+};
+
+const REQUEST_TIMEOUT_MS = 6_000;
+
+export function validateLiveApiBase(value: string | null): string {
+  if (value === null) throw new Error("LIVE TV Store API address is missing.");
+  const match =
+    /^http:\/\/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$/u.exec(
+      value,
+    );
+  if (match === null) throw new Error("TV Store API address is invalid.");
+  const port = Number(match[5]);
+  if (
+    !isPrivateLanIpv4Address(match.slice(1, 5).join(".")) ||
+    port < 1 ||
+    port > 65_535
+  )
+    throw new Error("TV Store API address is not a configured LAN endpoint.");
+  return value;
+}
 
 export async function loadCatalog(
   signal?: AbortSignal,
 ): Promise<TvStoreCatalogResponse> {
-  if (import.meta.env.VITE_ZUI_TV_STORE_MOCK !== "0") return mockTvStoreCatalog;
-  const base = String(import.meta.env.VITE_ZUI_TV_STORE_API_BASE ?? "");
-  if (
-    !/^http:\/\/(?:127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}):\d{1,5}$/u.test(
-      base,
-    )
-  )
-    throw new Error(
-      "TV Store API address is not a configured local-network endpoint.",
-    );
-  const response = await fetch(
-    `${base}/api/tv-store/v1/catalog`,
-    signal === undefined ? undefined : { signal },
-  );
-  if (!response.ok) throw new Error("Catalog service is unavailable.");
-  const envelope = (await response.json()) as { ok?: unknown; data?: unknown };
-  if (envelope.ok !== true || !isTvStoreCatalogResponse(envelope.data))
-    throw new Error("Catalog response is invalid.");
-  return envelope.data;
+  if (__ZUI_TV_STORE_CLIENT_CONFIG__.mode === "DEMO") return mockTvStoreCatalog;
+  return loadLiveCatalog(__ZUI_TV_STORE_CLIENT_CONFIG__.apiBase, signal);
+}
+
+export async function loadLiveCatalog(
+  configuredBase: string | null,
+  signal?: AbortSignal,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<TvStoreCatalogResponse> {
+  const base = validateLiveApiBase(configuredBase);
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  const timeout = setTimeout(abort, timeoutMs);
+  try {
+    const response = await fetch(`${base}/api/tv-store/v1/catalog`, {
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error("Catalog service is unavailable.");
+    const envelope = (await response.json()) as {
+      ok?: unknown;
+      data?: unknown;
+    };
+    if (envelope.ok !== true || !isTvStoreCatalogResponse(envelope.data))
+      throw new Error("Catalog response is invalid.");
+    if (envelope.data.mode !== "LIVE")
+      throw new Error("LIVE TV Store received a non-live catalog response.");
+    return envelope.data;
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
+  }
 }

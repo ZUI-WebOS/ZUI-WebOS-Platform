@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -181,6 +182,7 @@ function Home({
       <div className="section-heading">
         <h2>{t.apps}</h2>
         {catalog.mode === "MOCK" && <span className="demo">{t.mock}</span>}
+        {catalog.mode === "LIVE" && <span className="live">LIVE</span>}
       </div>
       <section className="product-grid">
         {catalog.products.map((product, index) => (
@@ -328,17 +330,38 @@ export function App() {
   const [restoreFocus, setRestoreFocus] = useState(
     evidence.get("focus") ?? "product-zui-iptv-player-production",
   );
+  const lastLoadedAt = useRef(0);
   const reload = useCallback(() => {
     if (evidence.get("state") === "offline") return () => undefined;
     setError(false);
     setCatalog(null);
     const controller = new AbortController();
     void loadCatalog(controller.signal)
-      .then(setCatalog)
+      .then((next) => {
+        lastLoadedAt.current = Date.now();
+        setCatalog(next);
+      })
       .catch(() => setError(true));
     return () => controller.abort();
   }, []);
   useEffect(() => reload(), [reload]);
+  useEffect(() => {
+    let cancel: (() => void) | undefined;
+    const refreshWhenVisible = () => {
+      if (
+        document.visibilityState === "visible" &&
+        Date.now() - lastLoadedAt.current >= 60_000
+      ) {
+        cancel?.();
+        cancel = reload();
+      }
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      cancel?.();
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [reload]);
   useEffect(() => {
     const requested = evidence.get("product");
     if (catalog !== null && requested !== null && view.kind === "home") {

@@ -1,6 +1,6 @@
 {
   "name": "@zui-webos/tv-store",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -12,10 +12,13 @@
     "package:webos": "pnpm build && ares-package -n dist/webos -o dist/ipk"
   },
   "dependencies": {
+    "@zui-webos/artifact-distribution": "workspace:*",
     "@zui-webos/catalog-contracts": "workspace:*",
     "@zui-webos/catalog-service": "workspace:*",
     "@zui-webos/design-system": "workspace:*",
     "@zui-webos/shared-types": "workspace:*",
+    "@zui-webos/signed-release": "workspace:*",
+    "@zui-webos/webos-client": "workspace:*",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

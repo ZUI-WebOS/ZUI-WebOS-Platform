@@ -17,6 +17,23 @@
       "sourceModel": "external-product-repository"
     },
     {
+      "id": "zui-store",
+      "displayName": "ZUI Store",
+      "repository": "https://github.com/ZUI-WebOS/ZUI-WebOS-Platform",
+      "appIds": ["com.zui.webos.store.staging"],
+      "appIdentities": [
+        {
+          "appId": "com.zui.webos.store.staging",
+          "deploymentClass": "staging"
+        }
+      ],
+      "expectedPublisher": "ZUI-WebOS",
+      "deploymentModel": "developer-mode-ipk",
+      "releaseSource": "github-releases",
+      "rootlessCompatible": true,
+      "sourceModel": "external-product-repository"
+    },
+    {
       "id": "zui-youtube-webos",
       "displayName": "ZUI YouTube for webOS",
       "repository": "https://github.com/ZUI-WebOS/ZUI-YouTube-WebOS",

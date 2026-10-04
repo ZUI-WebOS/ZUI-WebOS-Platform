@@ -18,7 +18,7 @@ const repository = {
   platform: "https://github.com/ZUI-WebOS/ZUI-WebOS-Platform",
 } as const;
 
-const registry: ProductRegistry = {
+export const tvStoreMockRegistry: ProductRegistry = {
   schemaVersion: 1,
   products: [
     {
@@ -84,7 +84,25 @@ function artifact(input: {
   };
 }
 
-const releases: readonly ProductRelease[] = [
+export const tvStoreMockReleases: readonly ProductRelease[] = [
+  {
+    schemaVersion: 1,
+    productId: "zui-store",
+    version: "0.2.0",
+    channel: "staging",
+    sourceRepository: repository.platform,
+    releaseRef: "tv-store-live-catalog-0.2.0",
+    artifacts: [
+      artifact({
+        id: "store-staging-0.2.0",
+        filename: "com.zui.webos.store.staging_0.2.0_all.ipk",
+        appId: "com.zui.webos.store.staging",
+        version: "0.2.0",
+        deploymentClass: "staging",
+        repository: repository.platform,
+      }),
+    ],
+  },
   {
     schemaVersion: 1,
     productId: "zui-iptv-player",
@@ -266,8 +284,8 @@ export function toTvStoreCatalog(
 
 export function buildMockTvStoreCatalog(): TvStoreCatalogResponse {
   const catalog = new CatalogService().build({
-    registry,
-    releases,
+    registry: tvStoreMockRegistry,
+    releases: tvStoreMockReleases,
     installedApplications: installed,
     cacheRecords: [
       {

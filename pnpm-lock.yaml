@@ -134,6 +134,9 @@ importers:
 
   apps/tv-store:
     dependencies:
+      "@zui-webos/artifact-distribution":
+        specifier: workspace:*
+        version: link:../../packages/artifact-distribution
       "@zui-webos/catalog-contracts":
         specifier: workspace:*
         version: link:../../packages/catalog-contracts
@@ -146,6 +149,12 @@ importers:
       "@zui-webos/shared-types":
         specifier: workspace:*
         version: link:../../packages/shared-types
+      "@zui-webos/signed-release":
+        specifier: workspace:*
+        version: link:../../packages/signed-release
+      "@zui-webos/webos-client":
+        specifier: workspace:*
+        version: link:../../packages/webos-client
       react:
         specifier: ^19.1.1
         version: 19.3.0

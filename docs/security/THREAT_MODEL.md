@@ -107,11 +107,14 @@ Catalog metadata and browser selections are untrusted inputs. The backend, not t
 
 ## TV Store extension
 
-The TV application is an untrusted LAN client of a separate public-safe catalog projection. It does not share the Web Manager control plane, and the present MVP packages deterministic normalized data while the live LAN provider remains disabled.
+The TV application is an untrusted LAN client of a separate public-safe catalog projection. It does not share the Web Manager control plane. DEMO packages deterministic normalized data; LIVE uses an explicitly configured PC interface and actual device inventory without fallback.
 
 | Threat                               | Control                                                                                                                                                                                                                   |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Accidental broad LAN exposure        | Startup requires one explicit IPv4 interface; absent, wildcard, and IPv6-any hosts fail closed. Web Manager remains loopback-only.                                                                                        |
+| Accidental broad LAN exposure        | Startup requires one explicit assigned RFC1918 private IPv4 interface; absent, unassigned, public, loopback, wildcard, hostname, malformed, and IPv6 hosts fail closed. Web Manager remains loopback-only.                |
+| Cross-origin LAN reads               | The webOS `file://` client is allowed as exact `Origin: null`; wildcard CORS is absent, foreign origins receive `403`, and the surface remains public-safe/read-only.                                                     |
+| Fake data presented as live          | LIVE accepts only a schema-valid response whose mode is `LIVE`; timeouts, malformed data, unavailable inventory, and service loss go to offline/Retry. There is no LIVE-to-DEMO fallback.                                 |
+| Stale or conflicting inventory       | Startup prewarms actual `tv` inventory, cache evidence and LG CLI access are serialized, real evidence is cached for only 30 seconds, and visible return/manual Retry refresh without aggressive polling.                 |
 | LAN enumeration or hostile client    | API has three versioned read resources, rejects queries, bounds URI/IDs, and allows no mutation method. Responses contain only public-safe catalog projection data.                                                       |
 | Arbitrary URL/path/command injection | Routes accept logical IDs only. There is no URL, path, shell, command, upload, file, cache, signing, approval, or installer parameter.                                                                                    |
 | Private data leakage                 | Explicit DTOs omit device addresses/aliases, filesystem and cache paths, private/signing-key paths, approval digests, raw inventory, credentials, and stacks. Only public-safe trust state and identifiers are projected. |

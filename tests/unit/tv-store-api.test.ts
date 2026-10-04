@@ -1,16 +1,33 @@
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   TvStoreApi,
   MockTvStoreDataProvider,
 } from "../../apps/tv-store/src/api.js";
 import { loadTvStoreApiConfig } from "../../apps/tv-store/src/config.js";
 import { isTvStoreCatalogResponse } from "../../apps/tv-store/src/contracts.js";
+import {
+  loadLiveCatalog,
+  validateLiveApiBase,
+} from "../../apps/tv-store/src/client/api-client.js";
+import { LiveTvStoreDataProvider } from "../../apps/tv-store/src/live.js";
+import {
+  tvStoreMockRegistry,
+  tvStoreMockReleases,
+  mockTvStoreCatalog,
+} from "../../apps/tv-store/src/mock.js";
 import { createTvStoreServer } from "../../apps/tv-store/src/server.js";
+import type {
+  ApplicationVersion,
+  InstalledApplication,
+  InstalledApplicationId,
+} from "@zui-webos/shared-types";
+import { PlatformError, validateDeviceAlias } from "@zui-webos/webos-client";
 
 const servers: ReturnType<typeof createTvStoreServer>[] = [];
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await Promise.all(
     servers
       .splice(0)
@@ -65,16 +82,176 @@ describe("TV Store read-only API", () => {
       loadTvStoreApiConfig({ ZUI_TV_STORE_API_HOST: "0.0.0.0" }),
     ).toThrow(/forbidden/u);
     expect(() =>
-      loadTvStoreApiConfig({
-        ZUI_TV_STORE_API_HOST: "192.168.1.10",
-        ZUI_TV_STORE_API_PORT: "70000",
-      }),
+      loadTvStoreApiConfig(
+        {
+          ZUI_TV_STORE_API_HOST: "192.168.1.10",
+          ZUI_TV_STORE_API_PORT: "70000",
+        },
+        ["192.168.1.10"],
+      ),
     ).toThrow(/65535/u);
     expect(loadTvStoreApiConfig({ ZUI_TV_STORE_MOCK: "1" })).toEqual({
       host: "127.0.0.1",
       port: 4274,
       mock: true,
+      deviceAlias: "tv",
     });
+    expect(
+      loadTvStoreApiConfig(
+        {
+          ZUI_TV_STORE_API_HOST: "10.23.45.67",
+          ZUI_TV_STORE_DEVICE_ALIAS: "tv",
+        },
+        ["10.23.45.67"],
+      ),
+    ).toEqual({
+      host: "10.23.45.67",
+      port: 4274,
+      mock: false,
+      deviceAlias: "tv",
+    });
+    expect(() =>
+      loadTvStoreApiConfig({ ZUI_TV_STORE_API_HOST: "10.23.45.68" }, [
+        "10.23.45.67",
+      ]),
+    ).toThrow(/not assigned/u);
+  });
+
+  it("accepts only an exact IPv4 and port client endpoint", () => {
+    expect(validateLiveApiBase("http://10.23.45.67:4274")).toBe(
+      "http://10.23.45.67:4274",
+    );
+    for (const value of [
+      null,
+      "https://10.23.45.67:4274",
+      "http://127.0.0.1:4274",
+      "http://010.23.45.67:4274",
+      "http://999.168.0.15:4274",
+      "http://10.23.45.67:70000",
+      "http://example.com:4274",
+      "http://10.23.45.67:4274/path",
+      "http://192.0.2.15:4274",
+    ])
+      expect(() => validateLiveApiBase(value)).toThrow();
+  });
+
+  it("rejects malformed/non-live responses and times out without mock fallback", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ok: true, data: {} }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    await expect(loadLiveCatalog("http://10.23.45.67:4274")).rejects.toThrow(
+      /invalid/u,
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            ok: true,
+            data: { ...mockTvStoreCatalog, mode: "MOCK" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+    await expect(loadLiveCatalog("http://10.23.45.67:4274")).rejects.toThrow(
+      /non-live/u,
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: string, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener(
+              "abort",
+              () => reject(new DOMException("Aborted", "AbortError")),
+              { once: true },
+            );
+          }),
+      ),
+    );
+    await expect(
+      loadLiveCatalog("http://10.23.45.67:4274", undefined, 5),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("projects actual inventory through CatalogService without merging identities", async () => {
+    const application = (
+      id: string,
+      version: string,
+    ): InstalledApplication => ({
+      id: id as InstalledApplicationId,
+      version: version as ApplicationVersion,
+      title: id,
+      source: "ares-install-listfull",
+      metadata: {},
+    });
+    let inventoryCalls = 0;
+    const provider = new LiveTvStoreDataProvider(validateDeviceAlias("tv"), {
+      inventory: {
+        listInstalledApplications: async (device) => {
+          inventoryCalls += 1;
+          if (inventoryCalls < 3)
+            throw new PlatformError(
+              "DEVICE_INVENTORY_FAILED",
+              "Transient inventory failure.",
+            );
+          return {
+            device,
+            timestamp: "2026-10-04T12:00:00.000Z",
+            source: "ares-install-listfull",
+            applications: [
+              application("com.zui.player", "1.0.1"),
+              application("youtube.leanback.v4", "0.8.3"),
+              application("com.zui.webos.store.staging", "0.2.0"),
+            ],
+          };
+        },
+      },
+      loadSources: async () => ({
+        registry: tvStoreMockRegistry,
+        releases: tvStoreMockReleases,
+      }),
+      loadCacheRecords: async () => [],
+      now: () => new Date("2026-10-04T12:00:00.000Z"),
+      retryDelayMs: 0,
+    });
+    const [catalog, concurrentCatalog] = await Promise.all([
+      provider.catalog(),
+      provider.catalog(),
+    ]);
+    expect(concurrentCatalog).toBe(catalog);
+    expect(inventoryCalls).toBe(3);
+    expect(catalog.mode).toBe("LIVE");
+    expect(catalog.inventoryAvailable).toBe(true);
+    expect(
+      catalog.products.find(
+        (item) => item.appId === "com.zui.webos.store.staging",
+      ),
+    ).toMatchObject({
+      installed: true,
+      installedVersion: "0.2.0",
+      updateStatus: "UP_TO_DATE",
+      deploymentClass: "staging",
+    });
+    expect(
+      catalog.products.find(
+        (item) => item.appId === "com.zui.webos.youtube.staging",
+      ),
+    ).toMatchObject({ installed: false, deploymentClass: "staging" });
+    expect(
+      catalog.products.find((item) => item.appId === "youtube.leanback.v4"),
+    ).toMatchObject({ installed: true, deploymentClass: "production" });
+    await expect(provider.catalog()).resolves.toBe(catalog);
+    expect(inventoryCalls).toBe(3);
   });
 
   it("serves only GET/HEAD/OPTIONS and has no mutation, query, or private-data surface", async () => {
@@ -82,6 +259,7 @@ describe("TV Store read-only API", () => {
       host: "127.0.0.1",
       port: 4274,
       mock: true,
+      deviceAlias: validateDeviceAlias("tv"),
     });
     servers.push(server);
     server.listen(0, "127.0.0.1");
@@ -101,5 +279,14 @@ describe("TV Store read-only API", () => {
     expect((await fetch(`${base}/install`, { method: "POST" })).status).toBe(
       405,
     );
+    const allowed = await fetch(`${base}/catalog`, {
+      headers: { Origin: "null" },
+    });
+    expect(allowed.headers.get("access-control-allow-origin")).toBe("null");
+    const denied = await fetch(`${base}/catalog`, {
+      headers: { Origin: "https://example.com" },
+    });
+    expect(denied.status).toBe(403);
+    expect(denied.headers.get("access-control-allow-origin")).toBeNull();
   });
 });

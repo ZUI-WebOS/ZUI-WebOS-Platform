@@ -11,6 +11,7 @@
     "src/api.ts",
     "src/config.ts",
     "src/contracts.ts",
+    "src/live.ts",
     "src/mock.ts"
   ]
 }

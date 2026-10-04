@@ -11,7 +11,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 describe("product registry", () => {
-  it("contains valid source-free metadata for the two external products", async () => {
+  it("contains valid source-free metadata for the three managed products", async () => {
     const text = await readFile(
       new URL("../../repository/apps/products.json", import.meta.url),
       "utf8",
@@ -21,12 +21,13 @@ describe("product registry", () => {
     expect(validateRegistry(registry)).toBe(true);
     if (!validateRegistry(registry))
       throw new Error("Invalid registry fixture");
-    expect(registry.products).toHaveLength(2);
+    expect(registry.products).toHaveLength(3);
     expect(
       registry.products.every((product) => product.rootlessCompatible),
     ).toBe(true);
     expect(registry.products.flatMap((product) => product.appIds)).toEqual([
       "com.zui.player",
+      "com.zui.webos.store.staging",
       "youtube.leanback.v4",
       "com.zui.webos.youtube.staging",
     ]);

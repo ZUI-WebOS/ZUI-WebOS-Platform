@@ -29,6 +29,17 @@ describe("TV Store UI", () => {
     expect(screen.getAllByText("STAGING").length).toBeGreaterThan(0);
     expect(screen.getByText("✓ Verified")).toBeTruthy();
     expect(screen.getByText("No compatible release")).toBeTruthy();
+    expect(screen.getByText("DEMO CATALOG")).toBeTruthy();
+  });
+
+  it("distinguishes live mode without showing the demo marker", async () => {
+    vi.mocked(client.loadCatalog).mockResolvedValueOnce({
+      ...mockTvStoreCatalog,
+      mode: "LIVE",
+    });
+    render(<App />);
+    expect(await screen.findByText("LIVE")).toBeTruthy();
+    expect(screen.queryByText("DEMO CATALOG")).toBeNull();
   });
 
   it("opens product detail, preserves exact trust semantics, and returns with Back", async () => {
@@ -80,6 +91,18 @@ describe("TV Store UI", () => {
     expect(alert.textContent).toContain("catalog is taking a break");
     expect(alert.textContent).not.toContain("private");
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  });
+
+  it("recovers from an unavailable live service only after explicit Retry", async () => {
+    vi.mocked(client.loadCatalog)
+      .mockRejectedValueOnce(new Error("network unavailable"))
+      .mockResolvedValueOnce({ ...mockTvStoreCatalog, mode: "LIVE" });
+    render(<App />);
+    const retry = await screen.findByRole("button", { name: "Try again" });
+    expect(screen.queryByText("DEMO CATALOG")).toBeNull();
+    fireEvent.click(retry);
+    expect(await screen.findByText("LIVE")).toBeTruthy();
+    expect(screen.queryByText("DEMO CATALOG")).toBeNull();
   });
 
   it("renders catalog strings as text rather than executable HTML", async () => {

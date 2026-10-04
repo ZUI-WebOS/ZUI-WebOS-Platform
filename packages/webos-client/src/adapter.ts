@@ -268,6 +268,13 @@ export class WebOSCliAdapter {
     alias: DeviceAlias,
   ): Promise<InventorySnapshot> {
     await this.status(alias);
+    return this.readInstalledApplications(alias);
+  }
+
+  async readInstalledApplications(
+    alias: DeviceAlias,
+  ): Promise<InventorySnapshot> {
+    await this.requireDevice(alias);
     const result = await this.runCli(this.installCommand, [
       "--listfull",
       "--device",
