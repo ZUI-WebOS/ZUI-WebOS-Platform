@@ -2,9 +2,9 @@
 
 ## Status
 
-`DONE_WITH_CONCERNS`
+`TV_STORE_MVP_COMPLETE`
 
-The user-facing TV Store MVP is implemented, packaged, and locally accepted. Real-TV installation and hardware acceptance remain open because both registered physical-TV aliases were unreachable on 2026-10-04. No TV mutation was attempted.
+The user-facing TV Store MVP is implemented, packaged, locally accepted, and accepted on the real `tv` hardware target. Only the authorized Store staging package was installed; no IPTV or YouTube package was changed, no catalog product operation was started, and Developer Mode was not extended.
 
 ## Delivered product
 
@@ -44,6 +44,8 @@ Browser acceptance confirmed:
 - EN → TR switched with remote-focusable control;
 - no console warning/error was observed.
 
+Real-TV acceptance confirmed the same interaction contract on the physical TV's webOS renderer. Inspector-dispatched native key events covered all four Arrow keys, Enter, and Escape/Back; detail → Back restored the originating IPTV card focus.
+
 ## Update and trust behavior
 
 All canonical `UpdateStatus` values have friendly EN/TR labels. All `CatalogTrustState` values have friendly labels without collapsing exact semantics. Detail retains the raw trust enum, for example `Repository verified · REPOSITORY_PINNED_HASH` and `Verified · SIGNED`. Staging is always labelled and uses separate App IDs.
@@ -64,10 +66,11 @@ All canonical `UpdateStatus` values have friendly EN/TR labels. All `CatalogTrus
 
 ## GitHub verification
 
-- Verified source commit: `6ad880ce53fb82acb1f9215a2a8da72e623f37b9`
-- CI: PASS — run `37201707770`
-- CodeQL: PASS — run `37201707771`
+- Pre-hardware acceptance source commit: `483e0249c7698839b1c5c46049b8340a3bc6b5fb`
+- CI: PASS — run `37201903228`
+- CodeQL: PASS — run `37201903196`
 - CI also passed the public staging release-operations verification step.
+- The final hardware evidence commit and its workflow results are reported in the acceptance handoff, avoiding a self-referential commit hash in this file.
 
 ## Package
 
@@ -89,27 +92,50 @@ The application icon was generated with the built-in image generator and stored 
 | Staging product         | `evidence/tv-store/05-staging-product.png`  |
 | Turkish UI              | `evidence/tv-store/06-turkish-ui.png`       |
 | Offline/error and retry | `evidence/tv-store/07-offline-error.png`    |
+| Real-TV home            | `evidence/tv-store/08-real-tv-home.png`      |
+| Real-TV product detail  | `evidence/tv-store/09-real-tv-detail.png`    |
+| Real-TV Turkish UI      | `evidence/tv-store/10-real-tv-turkish.png`   |
+| Real-TV offline/retry   | `evidence/tv-store/11-real-tv-offline.png`   |
 
-Screenshots are 1920×1080 local/mock captures and contain no IP address, token, private path, or key material.
+Screenshots `01`–`07` are 1920×1080 local/mock captures. Screenshots `08`–`11` were captured from the real TV renderer through its authorized application Inspector. They contain no IP address, token, private path, or key material.
 
 ## Real-TV acceptance
 
-Registered aliases `tv` and `lgtv` both returned `DEVICE_UNREACHABLE` during read-only preflight; a final retry after GitHub verification produced the same result. Therefore:
+Read-only preflight confirmed that alias `tv` was reachable. The exact authorized package was then installed and launched:
 
-- Store staging install/update: NOT ATTEMPTED
-- Application launch: NOT TESTED ON HARDWARE
-- Physical remote navigation/Back: NOT TESTED ON HARDWARE
-- TV runtime console: NOT INSPECTED
-- Existing IPTV/YouTube products changed: NO
-- TV mutation count: `0`
+- File: `apps/tv-store/dist/ipk/com.zui.webos.store.staging_0.1.0_all.ipk`
+- SHA-256: `0533158F909607ABDA143A1C8DC8635B3DEDEC1E0778DAEADA60DD2573A76845`
+- Installed App ID: `com.zui.webos.store.staging`
+- Installed version: `0.1.0`
+- Installed title: `ZUI Store STAGING`
+- Installed vendor: `ZUI-WebOS`
+- Launch: PASS
+- Home render and four product cards: PASS
+- Visible initial focus: PASS
+- Arrow Right/Down/Left/Up: PASS on the real TV renderer
+- OK/Enter opens detail: PASS
+- Back returns home: PASS
+- Detail → Back focus restore: PASS
+- EN → TR switch: PASS
+- Update, trust, production, and staging labels/details: PASS
+- Offline view and focused retry action: PASS; retry was activated while the deterministic offline evidence state remained active
+- Fatal runtime exceptions, console errors, and error-level log entries: `0`
 
-When the TV is online, the only permitted continuation is install/update and inspect `com.zui.webos.store.staging`; catalog product installation remains forbidden.
+Post-acceptance inventory confirmed protected identities were unchanged from preflight:
+
+- `com.zui.player`: still installed, version `1.0.1`
+- `youtube.leanback.v4`: still installed, version `0.8.3`
+- `com.zui.webos.youtube.staging`: still not installed
+
+Authorized Store package install/update count: `1`. Catalog product install/update count: `0`. Developer Mode extend count: `0`. No other TV package mutation was performed. Launch and Inspector activity were limited to `com.zui.webos.store.staging`.
+
+The platform registry currently classifies the Store identity as `UNKNOWN_PRODUCT` because the Store has not yet been added to the canonical product registry. This does not alter the directly verified installed App ID, title, version, vendor, or package hash, and it did not permit or trigger any catalog product action.
 
 ## Remaining concerns
 
-1. Hardware acceptance is still required before declaring `TV_STORE_MVP_COMPLETE`.
-2. The distributable intentionally uses deterministic normalized mock data. The documented live LAN provider remains a future integration after its inventory source and user-controlled LAN startup are accepted.
-3. Developer Mode expiry may later remove the Store like any Developer Mode application; this MVP does not extend Developer Mode.
+1. The distributable intentionally uses deterministic normalized mock data. The documented live LAN provider remains a future integration after its inventory source and user-controlled LAN startup are accepted.
+2. The Store identity is not yet present in the platform product registry, so generic inspection reports `UNKNOWN_PRODUCT` even though installed package metadata is exact.
+3. Developer Mode expiry may later remove the Store like any Developer Mode application; this MVP did not extend Developer Mode.
 
 ## Recommended next milestone
 
