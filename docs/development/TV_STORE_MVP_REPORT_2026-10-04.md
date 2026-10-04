@@ -62,6 +62,13 @@ All canonical `UpdateStatus` values have friendly EN/TR labels. All `CatalogTrus
 - invalid path/URL/command/oversized-ID tests: PASS
 - UI catalog/detail/update/trust/staging/EN-TR/focus/Back/offline/XSS tests: PASS
 
+## GitHub verification
+
+- Verified source commit: `6ad880ce53fb82acb1f9215a2a8da72e623f37b9`
+- CI: PASS — run `37201707770`
+- CodeQL: PASS — run `37201707771`
+- CI also passed the public staging release-operations verification step.
+
 ## Package
 
 - File: `com.zui.webos.store.staging_0.1.0_all.ipk`
@@ -73,21 +80,21 @@ The application icon was generated with the built-in image generator and stored 
 
 ## Screenshot evidence
 
-| Evidence | File |
-| --- | --- |
-| Home | `evidence/tv-store/01-home.png` |
-| Visible focused card | `evidence/tv-store/02-focused-card.png` |
-| Product detail | `evidence/tv-store/03-product-detail.png` |
-| Update available | `evidence/tv-store/04-update-available.png` |
-| Staging product | `evidence/tv-store/05-staging-product.png` |
-| Turkish UI | `evidence/tv-store/06-turkish-ui.png` |
-| Offline/error and retry | `evidence/tv-store/07-offline-error.png` |
+| Evidence                | File                                        |
+| ----------------------- | ------------------------------------------- |
+| Home                    | `evidence/tv-store/01-home.png`             |
+| Visible focused card    | `evidence/tv-store/02-focused-card.png`     |
+| Product detail          | `evidence/tv-store/03-product-detail.png`   |
+| Update available        | `evidence/tv-store/04-update-available.png` |
+| Staging product         | `evidence/tv-store/05-staging-product.png`  |
+| Turkish UI              | `evidence/tv-store/06-turkish-ui.png`       |
+| Offline/error and retry | `evidence/tv-store/07-offline-error.png`    |
 
 Screenshots are 1920×1080 local/mock captures and contain no IP address, token, private path, or key material.
 
 ## Real-TV acceptance
 
-Registered aliases `tv` and `lgtv` both returned `DEVICE_UNREACHABLE` during read-only preflight. Therefore:
+Registered aliases `tv` and `lgtv` both returned `DEVICE_UNREACHABLE` during read-only preflight; a final retry after GitHub verification produced the same result. Therefore:
 
 - Store staging install/update: NOT ATTEMPTED
 - Application launch: NOT TESTED ON HARDWARE
