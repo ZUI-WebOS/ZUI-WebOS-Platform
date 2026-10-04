@@ -1,5 +1,5 @@
 {
-  "name": "@zui-webos/installer-service",
+  "name": "@zui-webos/runtime-paths",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,14 +13,6 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc -p tsconfig.json"
-  },
-  "dependencies": {
-    "@zui-webos/catalog-contracts": "workspace:*",
-    "@zui-webos/installation-planner": "workspace:*",
-    "@zui-webos/package-inspector": "workspace:*",
-    "@zui-webos/runtime-paths": "workspace:*",
-    "@zui-webos/shared-types": "workspace:*",
-    "@zui-webos/webos-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -9,7 +9,6 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { promisify } from "node:util";
@@ -18,6 +17,7 @@ import type { Readable } from "node:stream";
 import { PassThrough } from "node:stream";
 
 import { inspectIpk } from "@zui-webos/package-inspector";
+import { artifactCacheRoot } from "@zui-webos/runtime-paths";
 import {
   validateManifest,
   verifyReleaseManifest,
@@ -183,12 +183,7 @@ function oneAsset(release: RemoteRelease, name: string): RemoteAsset {
 export class ArtifactDistributionService {
   constructor(
     private readonly provider: ReleaseProvider,
-    private readonly cacheRoot = join(
-      process.env.LOCALAPPDATA ?? join(homedir(), ".zui-webos"),
-      ...(process.env.LOCALAPPDATA === undefined ? [] : ["ZUI-WebOS"]),
-      "artifacts",
-      "sha256",
-    ),
+    private readonly cacheRoot = artifactCacheRoot(),
     private readonly maxArtifactBytes = 512 * 1024 * 1024,
   ) {}
   async fetch(input: {

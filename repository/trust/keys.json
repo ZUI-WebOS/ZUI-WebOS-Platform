@@ -5,10 +5,19 @@
       "keyId": "9A88FF6A23831F48EA0DB2D87313DEFC718A5DAE76BE97A7E8A41BBC9F439648",
       "algorithm": "Ed25519",
       "publicKeySpkiDerBase64": "MCowBQYDK2VwAyEAvVzKZx59rQdJcEHpsAbmZARUoT3Vj1nWW3wvgZ7OkPY=",
-      "status": "ACTIVE",
+      "status": "RETIRED",
       "scopes": ["STAGING_RELEASE"],
       "notBefore": "2026-10-02T20:04:30.590Z",
-      "description": "Ephemeral test/acceptance-only staging distribution key; private key was never persisted."
+      "description": "Retired ephemeral test/acceptance-only staging distribution key; private key was never persisted."
+    },
+    {
+      "keyId": "D0A3CB0CEA165FC29E5EBAD3AE50108C2EBB2E3147ACF7478309AB8EBA5C6237",
+      "algorithm": "Ed25519",
+      "publicKeySpkiDerBase64": "MCowBQYDK2VwAyEAOP6Aw9SNiwA3eSoEjeO/U7IMqivHyQpGFUNLHFKWp7Q=",
+      "status": "ACTIVE",
+      "scopes": ["STAGING_RELEASE"],
+      "notBefore": "2026-10-03T13:36:53.999Z",
+      "description": "Operational encrypted staging release signing key."
     }
   ]
 }

@@ -30,3 +30,6 @@ jobs:
 
       - name: Verify
         run: pnpm verify
+
+      - name: Verify public staging release operations
+        run: pnpm vitest run tests/unit/release-operations.test.ts

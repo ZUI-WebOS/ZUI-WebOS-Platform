@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@zui-webos/package-inspector": "workspace:*",
+    "@zui-webos/runtime-paths": "workspace:*",
     "@zui-webos/signed-release": "workspace:*",
     "@zui-webos/webos-client": "workspace:*"
   },

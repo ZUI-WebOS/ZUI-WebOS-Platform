@@ -7,7 +7,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import {
   ArtifactDistributionService,
   GitHubReleaseProvider,
@@ -34,6 +34,15 @@ import {
   inspectIpk,
   type PackageInspection,
 } from "@zui-webos/package-inspector";
+import {
+  GhCliGitHubReleaseApi,
+  GitHubReleasePublisher,
+  loadPreparedStagingRelease,
+  StagingKeyStore,
+  PinnedArtifactStager,
+  StagingReleasePipeline,
+  summarizePreparedRelease,
+} from "@zui-webos/release-operations";
 import {
   createEphemeralStagingSigner,
   validateManifest,
@@ -80,12 +89,20 @@ Usage:
   zui-webos release list [--json]
   zui-webos release inspect <artifact-id> [--json]
   zui-webos trust keys list [--json]
+  zui-webos trust keys inspect <key-id> [--json]
+  zui-webos trust keys lifecycle <key-id> <RETIRED|REVOKED> <output.json>
+  zui-webos trust key generate-staging [--json]
   zui-webos release manifest build <artifact-id> <source-commit> <output.json>
   zui-webos release manifest sign <manifest.json> <signature.json> <public-key.json> --ephemeral-staging
   zui-webos release manifest verify <manifest.json> <signature.json> [--json]
   zui-webos artifact fetch <owner/repo> <tag> <artifact-id> [--json]
   zui-webos artifact cache list [--json]
   zui-webos artifact cache verify <sha256> [--json]
+  zui-webos release staging prepare <artifact-id> <path.ipk> <source-repository-path> <source-commit> <release-id> [--json]
+  zui-webos release staging stage-input <artifact-id> <path.ipk> [--json]
+  zui-webos release staging verify <bundle-directory> [--json]
+  zui-webos release staging upload <bundle-directory> --approve <release-id> [--json]
+  zui-webos release staging resume-upload <bundle-directory> <github-release-id> --approve <release-id> [--json]
   zui-webos devmode status [--device <alias>] [--json]
   zui-webos devmode extend [--device <alias>] [--dry-run] [--json]
   zui-webos devmode ensure [--device <alias>] [--dry-run] [--json]
@@ -93,7 +110,8 @@ Usage:
 
 Configuration precedence: CLI arguments, environment, local user config, defaults.
 Environment: ZUI_WEBOS_DEVICE, ZUI_WEBOS_TIMEOUT_MS,
-ZUI_DEVMODE_RENEW_THRESHOLD_HOURS, ZUI_WEBOS_CONFIG.`;
+ZUI_DEVMODE_RENEW_THRESHOLD_HOURS, ZUI_WEBOS_CONFIG.
+Secret input: ZUI_WEBOS_STAGING_SIGNING_PASSPHRASE (optional; hidden prompt preferred).`;
 
 function optionValue(
   args: readonly string[],
@@ -320,6 +338,74 @@ function packageSummary(
   ].join("\n");
 }
 
+async function hiddenPassphrase(prompt: string): Promise<Buffer> {
+  const fromEnvironment = process.env.ZUI_WEBOS_STAGING_SIGNING_PASSPHRASE;
+  if (fromEnvironment !== undefined) {
+    delete process.env.ZUI_WEBOS_STAGING_SIGNING_PASSPHRASE;
+    return Buffer.from(fromEnvironment, "utf8");
+  }
+  if (!process.stdin.isTTY || !process.stdout.isTTY)
+    throw new PlatformError(
+      "SIGNING_KEY_PASSPHRASE_INVALID",
+      "A TTY hidden prompt or ZUI_WEBOS_STAGING_SIGNING_PASSPHRASE is required.",
+    );
+  process.stdout.write(prompt);
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
+  const bytes: number[] = [];
+  try {
+    return await new Promise<Buffer>((resolveSecret, rejectSecret) => {
+      const onData = (chunk: Buffer): void => {
+        for (const byte of chunk) {
+          if (byte === 3) {
+            process.stdin.off("data", onData);
+            rejectSecret(
+              new PlatformError(
+                "SIGNING_KEY_PASSPHRASE_INVALID",
+                "Passphrase entry was cancelled.",
+              ),
+            );
+            return;
+          }
+          if (byte === 13 || byte === 10) {
+            process.stdin.off("data", onData);
+            process.stdout.write("\n");
+            resolveSecret(Buffer.from(bytes));
+            return;
+          }
+          if (byte === 8 || byte === 127) bytes.pop();
+          else bytes.push(byte);
+        }
+      };
+      process.stdin.on("data", onData);
+    });
+  } finally {
+    bytes.fill(0);
+    process.stdin.setRawMode(false);
+    process.stdin.pause();
+  }
+}
+
+async function generationPassphrase(): Promise<Buffer> {
+  const environmentProvided =
+    process.env.ZUI_WEBOS_STAGING_SIGNING_PASSPHRASE !== undefined;
+  const first = await hiddenPassphrase(
+    "New staging signing passphrase (hidden): ",
+  );
+  if (environmentProvided) return first;
+  const second = await hiddenPassphrase("Confirm passphrase (hidden): ");
+  if (!first.equals(second)) {
+    first.fill(0);
+    second.fill(0);
+    throw new PlatformError(
+      "SIGNING_KEY_PASSPHRASE_INVALID",
+      "Passphrase confirmation did not match.",
+    );
+  }
+  second.fill(0);
+  return first;
+}
+
 async function execute(args: readonly string[]): Promise<number> {
   const parsed = parseArguments(args);
   const logger = createLogger(parsed.json);
@@ -342,6 +428,27 @@ async function execute(args: readonly string[]): Promise<number> {
     logger.result(parsed.json ? value : human);
   };
 
+  if (route === "trust key generate-staging") {
+    const passphrase = await generationPassphrase();
+    try {
+      const result = await new StagingKeyStore().generate(passphrase);
+      emit(
+        {
+          keyId: result.trustEntry.keyId,
+          algorithm: result.trustEntry.algorithm,
+          scopes: result.trustEntry.scopes,
+          status: result.trustEntry.status,
+          publicMetadataPath: result.publicMetadataPath,
+          permissions: result.permissions,
+        },
+        `Encrypted staging key created.\nKey ID: ${result.trustEntry.keyId}\nPublic metadata: ${result.publicMetadataPath}\nPermissions: ${result.permissions.method}`,
+      );
+      return 0;
+    } finally {
+      passphrase.fill(0);
+    }
+  }
+
   if (route === "trust keys list") {
     const store = await loadTrustStore();
     emit(
@@ -351,6 +458,206 @@ async function execute(args: readonly string[]): Promise<number> {
         .join("\n"),
     );
     return 0;
+  }
+
+  if (commandGroup === "trust" && commandAction === "keys") {
+    const operation = parsed.command[2];
+    const keyId = parsed.command[3];
+    const store = await loadTrustStore();
+    const key = store.keys.find((candidate) => candidate.keyId === keyId);
+    if (operation === "inspect") {
+      const inspected = store.keys.find(
+        (candidate) => candidate.keyId === keyId,
+      );
+      if (inspected === undefined)
+        throw new PlatformError(
+          "SIGNING_KEY_UNKNOWN",
+          "Signing key was not found in the public trust store.",
+        );
+      emit(
+        inspected,
+        `${inspected.keyId} ${inspected.status} ${inspected.scopes.join(",")}`,
+      );
+      return 0;
+    }
+    if (operation === "lifecycle") {
+      const status = parsed.command[4];
+      const output = parsed.command[5];
+      if (
+        key === undefined ||
+        (status !== "RETIRED" && status !== "REVOKED") ||
+        output === undefined
+      )
+        throw new PlatformError(
+          "INVALID_ARGUMENT",
+          "trust keys lifecycle requires key ID, RETIRED or REVOKED, and a new output path.",
+        );
+      const updated: PublicTrustStore = {
+        ...store,
+        keys: store.keys.map((candidate) =>
+          candidate.keyId === keyId ? { ...candidate, status } : candidate,
+        ),
+      };
+      await writeFile(output, `${JSON.stringify(updated, null, 2)}\n`, {
+        encoding: "utf8",
+        flag: "wx",
+      });
+      emit(
+        updated,
+        `Proposed trust store written without overwriting current state: ${output}`,
+      );
+      return 0;
+    }
+  }
+
+  if (commandGroup === "release" && commandAction === "staging") {
+    const operation = parsed.command[2];
+    if (operation === "stage-input") {
+      const [artifactId, sourcePath] = parsed.command.slice(3);
+      if (artifactId === undefined || sourcePath === undefined)
+        throw new PlatformError(
+          "INVALID_ARGUMENT",
+          "release staging stage-input requires artifact ID and IPK path.",
+        );
+      const registry = await loadProductRegistry();
+      const staged = await new PinnedArtifactStager().stage({
+        releases: await loadReleaseRecords(registry),
+        artifactId,
+        sourcePath,
+      });
+      emit(
+        staged,
+        `Pinned staging input verified.\nArtifact: ${staged.artifactPath}\nSHA256: ${staged.sha256}`,
+      );
+      return 0;
+    }
+    if (operation === "prepare") {
+      const [
+        artifactId,
+        artifactPath,
+        sourceRepositoryPath,
+        sourceCommit,
+        releaseId,
+      ] = parsed.command.slice(3);
+      if (
+        artifactId === undefined ||
+        artifactPath === undefined ||
+        sourceRepositoryPath === undefined ||
+        sourceCommit === undefined ||
+        releaseId === undefined
+      )
+        throw new PlatformError(
+          "INVALID_ARGUMENT",
+          "release staging prepare requires artifact ID, IPK path, source repository path, source commit, and release ID.",
+        );
+      const passphrase = await hiddenPassphrase(
+        "Staging signing passphrase (hidden): ",
+      );
+      try {
+        const registry = await loadProductRegistry();
+        const prepared = await new StagingReleasePipeline().prepare({
+          registry,
+          releases: await loadReleaseRecords(registry),
+          trustStore: await loadTrustStore(),
+          artifactId,
+          artifactPath,
+          sourceRepositoryPath,
+          sourceCommit,
+          releaseId,
+          signer: await new StagingKeyStore().unlock(passphrase),
+        });
+        emit(
+          prepared.report,
+          `${summarizePreparedRelease(prepared)}\nBundle: ${prepared.directory}\nLocal verification: PASS`,
+        );
+        return 0;
+      } finally {
+        passphrase.fill(0);
+      }
+    }
+    if (operation === "verify") {
+      const directory = parsed.command[3];
+      if (directory === undefined)
+        throw new PlatformError(
+          "INVALID_ARGUMENT",
+          "release staging verify requires a bundle directory.",
+        );
+      const report = await new StagingReleasePipeline().verifyBundle(
+        directory,
+        await loadTrustStore(),
+      );
+      emit(report, `SIGNED_TRUSTED\nRelease: ${report.releaseId}`);
+      return 0;
+    }
+    if (operation === "upload") {
+      const directory = parsed.command[3];
+      if (directory === undefined)
+        throw new PlatformError(
+          "INVALID_ARGUMENT",
+          "release staging upload requires a verified bundle directory.",
+        );
+      const store = await loadTrustStore();
+      const prepared = await loadPreparedStagingRelease(directory, store);
+      if (parsed.approve !== prepared.manifest.releaseId)
+        throw new PlatformError(
+          "APPROVAL_REQUIRED",
+          `Upload requires --approve ${prepared.manifest.releaseId}.`,
+        );
+      logger.error({
+        mutationPreview: summarizePreparedRelease(prepared),
+        action: "CREATE_ONE_DRAFT_PRERELEASE_AND_UPLOAD_THREE_ASSETS",
+      });
+      const observed = await new GitHubReleasePublisher(
+        new GhCliGitHubReleaseApi(),
+      ).upload({
+        prepared,
+        registry: await loadProductRegistry(),
+      });
+      emit(
+        observed,
+        `Draft staging prerelease verified after upload.\n${observed.htmlUrl}`,
+      );
+      return 0;
+    }
+    if (operation === "resume-upload") {
+      const directory = parsed.command[3];
+      const releaseIdText = parsed.command[4];
+      const releaseId = Number(releaseIdText);
+      if (
+        directory === undefined ||
+        releaseIdText === undefined ||
+        !Number.isSafeInteger(releaseId) ||
+        releaseId <= 0
+      )
+        throw new PlatformError(
+          "INVALID_ARGUMENT",
+          "release staging resume-upload requires a verified bundle directory and positive GitHub release ID.",
+        );
+      const store = await loadTrustStore();
+      const prepared = await loadPreparedStagingRelease(directory, store);
+      if (parsed.approve !== prepared.manifest.releaseId)
+        throw new PlatformError(
+          "APPROVAL_REQUIRED",
+          `Recovery requires --approve ${prepared.manifest.releaseId}.`,
+        );
+      logger.error({
+        mutationPreview: summarizePreparedRelease(prepared),
+        githubReleaseId: releaseId,
+        action: "RESUME_EXACT_EXISTING_DRAFT_WITH_MISSING_WHITELIST_ASSETS",
+      });
+      const observed = await new GitHubReleasePublisher(
+        new GhCliGitHubReleaseApi(),
+      ).resumeUpload({
+        prepared,
+        registry: await loadProductRegistry(),
+        releaseId,
+      });
+      emit(
+        observed,
+        `Recovered draft staging prerelease verified after upload.\n${observed.htmlUrl}`,
+      );
+      return 0;
+    }
   }
 
   if (commandGroup === "release" && commandAction === "manifest") {
@@ -873,7 +1180,8 @@ export async function main(
 
 if (
   process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
+  resolve(await realpath(process.argv[1])) ===
+    resolve(await realpath(fileURLToPath(import.meta.url)))
 ) {
   await main();
 }

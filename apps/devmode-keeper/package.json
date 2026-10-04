@@ -18,6 +18,7 @@
     "@zui-webos/installation-planner": "workspace:*",
     "@zui-webos/installer-service": "workspace:*",
     "@zui-webos/package-inspector": "workspace:*",
+    "@zui-webos/release-operations": "workspace:*",
     "@zui-webos/signed-release": "workspace:*",
     "@zui-webos/shared-types": "workspace:*",
     "@zui-webos/webos-client": "workspace:*"

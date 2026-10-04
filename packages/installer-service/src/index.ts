@@ -1,5 +1,4 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 
 import {
@@ -13,6 +12,7 @@ import {
   type InstallationRisk,
 } from "@zui-webos/installation-planner";
 import { inspectIpk } from "@zui-webos/package-inspector";
+import { platformDataRoot } from "@zui-webos/runtime-paths";
 import type {
   CommandResult,
   DeviceAlias,
@@ -73,11 +73,7 @@ export interface ReceiptStore {
 
 export class FileReceiptStore implements ReceiptStore {
   constructor(
-    private readonly directory = join(
-      process.env.LOCALAPPDATA ?? join(homedir(), ".zui-webos"),
-      ...(process.env.LOCALAPPDATA === undefined ? [] : ["ZUI-WebOS"]),
-      "receipts",
-    ),
+    private readonly directory = join(platformDataRoot(), "receipts"),
   ) {}
   async write(receipt: InstallationReceipt): Promise<string> {
     try {

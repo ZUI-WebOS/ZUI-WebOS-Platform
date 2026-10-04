@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
 import {
@@ -25,6 +24,7 @@ import { createInstallationPlan } from "@zui-webos/installation-planner";
 import type { InstallationPlanV2 } from "@zui-webos/installation-planner";
 import { FileReceiptStore } from "@zui-webos/installer-service";
 import { inspectIpk } from "@zui-webos/package-inspector";
+import { platformDataRoot } from "@zui-webos/runtime-paths";
 import {
   validateTrustStore,
   type PublicTrustStore,
@@ -64,10 +64,7 @@ import {
   mockReceipts,
 } from "./mock.js";
 
-const localBase = join(
-  process.env.LOCALAPPDATA ?? join(homedir(), ".zui-webos"),
-  ...(process.env.LOCALAPPDATA === undefined ? [] : ["ZUI-WebOS"]),
-);
+const localBase = platformDataRoot();
 const uploads = join(localBase, "web-manager", "uploads");
 const uploadIndex = new Map<string, string>();
 const LOGICAL_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
