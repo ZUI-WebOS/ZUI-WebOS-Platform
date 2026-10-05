@@ -11,6 +11,12 @@
     "src/api.ts",
     "src/config.ts",
     "src/contracts.ts",
+    "src/install-contracts.ts",
+    "src/install-config.ts",
+    "src/install.ts",
+    "src/install-server.ts",
+    "src/catalog-invalidation.ts",
+    "src/network-policy.ts",
     "src/live.ts",
     "src/mock.ts"
   ]

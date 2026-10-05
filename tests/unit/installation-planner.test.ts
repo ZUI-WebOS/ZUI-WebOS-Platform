@@ -205,7 +205,7 @@ describe("installation planner", () => {
     expect(result.executable).toBe(false);
   });
 
-  it("preserves the accepted unsigned pinned staging behavior", () => {
+  it("blocks repository-pinned-only staging without signed trust", () => {
     const result = createInstallationPlan({
       package: packageInspection("com.zui.webos.youtube.staging"),
       registry,
@@ -214,6 +214,32 @@ describe("installation planner", () => {
       artifactVerification: pinned("staging"),
     });
     expect(result.artifact.trustLevel).toBe("REPOSITORY_PINNED_HASH");
-    expect(result.policyDecision).toBe("ALLOW_WITH_APPROVAL");
+    expect(result.policyDecision).toBe("BLOCK");
+    expect(result.riskFlags).toContainEqual(
+      expect.objectContaining({
+        code: "ARTIFACT_TRUST_BLOCK",
+        severity: "BLOCK",
+      }),
+    );
+  });
+
+  it("blocks same-version and unknown version relations", () => {
+    for (const [installed, candidate, code] of [
+      ["1.0.0", "1.0.0", "SAME_VERSION_REINSTALL"],
+      ["unknown", "1.0.0", "UNKNOWN_VERSION_RELATION"],
+    ] as const) {
+      const result = createInstallationPlan({
+        package: packageInspection("com.zui.webos.youtube.staging", candidate),
+        registry,
+        inventory: inventory("com.zui.webos.youtube.staging", installed),
+        connectionStatus: "reachable",
+        artifactVerification: pinned("staging"),
+        signedDistributionTrusted: true,
+      });
+      expect(result.policyDecision).toBe("BLOCK");
+      expect(result.riskFlags).toContainEqual(
+        expect.objectContaining({ code, severity: "BLOCK" }),
+      );
+    }
   });
 });

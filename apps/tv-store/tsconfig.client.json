@@ -10,6 +10,8 @@
     "src/client/**/*.ts",
     "src/client/**/*.tsx",
     "src/contracts.ts",
+    "src/install-contracts.ts",
+    "src/network-policy.ts",
     "src/mock.ts"
   ]
 }

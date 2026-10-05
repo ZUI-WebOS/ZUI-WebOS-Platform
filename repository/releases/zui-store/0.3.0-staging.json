@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schemas/release-record.schema.json",
+  "schemaVersion": 1,
+  "productId": "zui-store",
+  "version": "0.3.0",
+  "channel": "staging",
+  "sourceRepository": "https://github.com/ZUI-WebOS/ZUI-WebOS-Platform",
+  "releaseRef": "tv-store-staging-install-0.3.0",
+  "artifacts": [
+    {
+      "artifactId": "zui-store-0.3.0-staging",
+      "filename": "com.zui.webos.store.staging_0.3.0_all.ipk",
+      "appId": "com.zui.webos.store.staging",
+      "version": "0.3.0",
+      "deploymentClass": "staging",
+      "size": 1533662,
+      "hash": {
+        "algorithm": "sha256",
+        "digest": "70ABCAC2D1292DD8F5539A6F8CFE7F6292BB6FD996BD8387E92F4FAA8384A1F4"
+      },
+      "source": {
+        "type": "LOCAL_VERIFIED",
+        "repository": "https://github.com/ZUI-WebOS/ZUI-WebOS-Platform",
+        "releaseRef": "tv-store-staging-install-0.3.0",
+        "assetName": "com.zui.webos.store.staging_0.3.0_all.ipk",
+        "evidencePath": "apps/tv-store/dist/ipk/com.zui.webos.store.staging_0.3.0_all.ipk"
+      }
+    }
+  ]
+}

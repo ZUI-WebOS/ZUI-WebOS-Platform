@@ -146,6 +146,18 @@ importers:
       "@zui-webos/design-system":
         specifier: workspace:*
         version: link:../../packages/design-system
+      "@zui-webos/installation-planner":
+        specifier: workspace:*
+        version: link:../../packages/installation-planner
+      "@zui-webos/installer-service":
+        specifier: workspace:*
+        version: link:../../packages/installer-service
+      "@zui-webos/package-inspector":
+        specifier: workspace:*
+        version: link:../../packages/package-inspector
+      "@zui-webos/runtime-paths":
+        specifier: workspace:*
+        version: link:../../packages/runtime-paths
       "@zui-webos/shared-types":
         specifier: workspace:*
         version: link:../../packages/shared-types

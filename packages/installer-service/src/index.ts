@@ -47,6 +47,17 @@ export interface InstallationReceipt {
   readonly postInstallVerified: boolean;
   readonly result: "SUCCESS" | "FAILED";
   readonly rollback: RollbackAvailability;
+  readonly origin?: "TV_STORE";
+}
+export type InstallationPhase =
+  | "VERIFYING_PACKAGE"
+  | "CHECKING_TV"
+  | "INSTALLING"
+  | "VERIFYING_INSTALLATION"
+  | "COMPLETE";
+export interface InstallationExecutionOptions {
+  readonly origin?: "TV_STORE";
+  readonly onPhase?: (phase: InstallationPhase) => void;
 }
 export interface InstallExecutionResult {
   readonly commandAccepted: boolean;
@@ -154,6 +165,7 @@ export class InstallerService {
     plan: InstallationPlanV2,
     approval: string,
     releases: readonly ProductRelease[],
+    options: InstallationExecutionOptions = {},
   ): Promise<InstallExecutionResult> {
     if (!validatePlanDigest(plan))
       throw new PlatformError(
@@ -189,6 +201,7 @@ export class InstallerService {
         "Only approved, policy-allowed staging plans can execute.",
       );
 
+    options.onPhase?.("VERIFYING_PACKAGE");
     const inspection = await inspectIpk(plan.artifact.path);
     const manifest =
       inspection.manifests.length === 1 ? inspection.manifests[0] : undefined;
@@ -218,6 +231,7 @@ export class InstallerService {
         "UNTRUSTED_ARTIFACT",
         "Artifact no longer matches pinned staging metadata.",
       );
+    options.onPhase?.("CHECKING_TV");
     const before = await this.adapter.listInstalledApplications(
       plan.deviceAlias as DeviceAlias,
     );
@@ -227,6 +241,7 @@ export class InstallerService {
         "Installed application state changed after planning.",
       );
 
+    options.onPhase?.("INSTALLING");
     const command = await this.adapter.installPackage(
       plan.deviceAlias as DeviceAlias,
       plan.artifact.path,
@@ -249,6 +264,7 @@ export class InstallerService {
         postInstallVerified: false,
         result: "FAILED",
         rollback: "ROLLBACK_UNAVAILABLE",
+        ...(options.origin === undefined ? {} : { origin: options.origin }),
       };
       const receiptPath = await this.receipts.write(failedReceipt);
       throw new PlatformError(
@@ -257,6 +273,7 @@ export class InstallerService {
         receiptPath,
       );
     }
+    options.onPhase?.("VERIFYING_INSTALLATION");
     let after: InventorySnapshot;
     try {
       after = await this.adapter.listInstalledApplications(
@@ -279,6 +296,7 @@ export class InstallerService {
         postInstallVerified: false,
         result: "FAILED",
         rollback: "ROLLBACK_UNAVAILABLE",
+        ...(options.origin === undefined ? {} : { origin: options.origin }),
       });
       throw new PlatformError(
         "INSTALL_VERIFICATION_FAILED",
@@ -315,6 +333,7 @@ export class InstallerService {
       postInstallVerified,
       result: postInstallVerified ? "SUCCESS" : "FAILED",
       rollback,
+      ...(options.origin === undefined ? {} : { origin: options.origin }),
     };
     const receiptPath = await this.receipts.write(receipt);
     if (!postInstallVerified)
@@ -323,6 +342,7 @@ export class InstallerService {
         "Post-install inventory verification failed.",
         receiptPath,
       );
+    options.onPhase?.("COMPLETE");
     return {
       commandAccepted,
       postInstallVerified,

@@ -11,7 +11,10 @@ export const TV_STORE_API_VERSION = 1 as const;
 export const TV_STORE_API_PREFIX = "/api/tv-store/v1" as const;
 
 export interface TvStoreProduct {
+  /** Stable card identity; deployment-specific within the TV UI. */
   readonly productId: string;
+  /** Canonical registry identity used for server-authoritative operations. */
+  readonly catalogProductId: string;
   readonly displayName: string;
   readonly description: { readonly en: string; readonly tr: string };
   readonly icon: "iptv" | "youtube" | "store" | "generic";
@@ -68,6 +71,8 @@ export function isTvStoreCatalogResponse(
     return (
       typeof product.productId === "string" &&
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(product.productId) &&
+      typeof product.catalogProductId === "string" &&
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(product.catalogProductId) &&
       typeof product.displayName === "string" &&
       typeof product.description === "object" &&
       product.description !== null &&

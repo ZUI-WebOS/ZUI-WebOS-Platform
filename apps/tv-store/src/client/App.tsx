@@ -7,13 +7,46 @@ import {
   type ReactNode,
 } from "react";
 import type { TvStoreCatalogResponse, TvStoreProduct } from "../contracts.js";
-import { loadCatalog } from "./api-client.js";
+import type {
+  PublicInstallIntent,
+  PublicInstallStatus,
+} from "../install-contracts.js";
+import {
+  approveInstallIntent,
+  cancelInstallIntent,
+  createInstallIntent,
+  loadCatalog,
+  loadInstallStatus,
+  pairInstallService,
+} from "./api-client.js";
 import { TvFocusProvider, useTvFocusTarget } from "./focus.js";
-import { text, trustLabel, updateLabel, type Locale } from "./i18n.js";
+import {
+  installErrorLabel,
+  text,
+  trustLabel,
+  updateLabel,
+  type Locale,
+} from "./i18n.js";
 
 type View =
   | { readonly kind: "home" }
-  | { readonly kind: "detail"; readonly product: TvStoreProduct };
+  | { readonly kind: "detail"; readonly product: TvStoreProduct }
+  | { readonly kind: "pair"; readonly product: TvStoreProduct }
+  | {
+      readonly kind: "review";
+      readonly product: TvStoreProduct;
+      readonly intent: PublicInstallIntent;
+    }
+  | {
+      readonly kind: "progress";
+      readonly product: TvStoreProduct;
+      readonly intent: PublicInstallIntent;
+    }
+  | {
+      readonly kind: "result";
+      readonly product: TvStoreProduct;
+      readonly status: PublicInstallStatus;
+    };
 
 function FocusButton({
   id,
@@ -23,6 +56,7 @@ function FocusButton({
   onClick,
   children,
   label,
+  disabled,
 }: {
   readonly id: string;
   readonly row: number;
@@ -31,6 +65,7 @@ function FocusButton({
   readonly onClick: () => void;
   readonly children: ReactNode;
   readonly label?: string;
+  readonly disabled?: boolean;
 }) {
   const focus = useTvFocusTarget(id, row, column);
   return (
@@ -39,9 +74,39 @@ function FocusButton({
       className={className}
       onClick={onClick}
       aria-label={label}
+      disabled={disabled}
     >
       {children}
     </button>
+  );
+}
+
+function FocusInput({
+  id,
+  value,
+  onChange,
+  label,
+}: {
+  readonly id: string;
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+  readonly label: string;
+}) {
+  const focus = useTvFocusTarget(id, 1, 0);
+  return (
+    <input
+      {...focus}
+      className="pair-code"
+      type="password"
+      inputMode="numeric"
+      autoComplete="one-time-code"
+      maxLength={8}
+      value={value}
+      aria-label={label}
+      onChange={(event) =>
+        onChange(event.target.value.replace(/\D/gu, "").slice(0, 8))
+      }
+    />
   );
 }
 
@@ -220,10 +285,12 @@ function Detail({
   product,
   locale,
   back,
+  install,
 }: {
   readonly product: TvStoreProduct;
   readonly locale: Locale;
   readonly back: () => void;
+  readonly install: (() => void) | null;
 }) {
   const t = text(locale);
   return (
@@ -278,11 +345,222 @@ function Detail({
           wide
         />
       </section>
-      <p className="read-only-note">
-        {locale === "tr"
-          ? "Bu sürüm salt okunurdur. Kurulum işlemi içermez."
-          : "This release is read-only. Installation is not included."}
+      {install === null ? (
+        <p className="read-only-note">{t.installUnavailable}</p>
+      ) : (
+        <div className="detail-actions">
+          <FocusButton
+            id="detail-install"
+            row={2}
+            column={0}
+            className="primary-action"
+            onClick={install}
+          >
+            {product.updateStatus === "UPDATE_AVAILABLE" ? t.update : t.install}
+          </FocusButton>
+          <span>{t.installArmedHint}</span>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function PairView({
+  locale,
+  code,
+  setCode,
+  submit,
+  cancel,
+  error,
+  busy,
+}: {
+  readonly locale: Locale;
+  readonly code: string;
+  readonly setCode: (value: string) => void;
+  readonly submit: () => void;
+  readonly cancel: () => void;
+  readonly error: string | null;
+  readonly busy: boolean;
+}) {
+  const t = text(locale);
+  return (
+    <main className="install-flow pair-view">
+      <p className="eyebrow">{t.installMode}</p>
+      <h1>{t.pairTitle}</h1>
+      <p className="install-lead">{t.pairBody}</p>
+      <FocusInput
+        id="pair-code"
+        value={code}
+        onChange={setCode}
+        label={t.pairCode}
+      />
+      {error !== null && <p className="flow-error">{error}</p>}
+      <div className="approval-actions">
+        <FocusButton
+          id="pair-cancel"
+          row={2}
+          column={0}
+          className="secondary-action"
+          onClick={cancel}
+        >
+          {t.cancel}
+        </FocusButton>
+        <FocusButton
+          id="pair-submit"
+          row={2}
+          column={1}
+          className="primary-action"
+          onClick={submit}
+          disabled={busy || code.length !== 8}
+        >
+          {busy ? t.preparing : t.pair}
+        </FocusButton>
+      </div>
+    </main>
+  );
+}
+
+function ApprovalView({
+  locale,
+  intent,
+  cancel,
+  approve,
+  busy,
+  error,
+}: {
+  readonly locale: Locale;
+  readonly intent: PublicInstallIntent;
+  readonly cancel: () => void;
+  readonly approve: () => void;
+  readonly busy: boolean;
+  readonly error: string | null;
+}) {
+  const t = text(locale);
+  return (
+    <main className="install-flow approval-view">
+      <div className="detail-tags">
+        <span className="channel staging">{t.staging}</span>
+        <span className="verified-badge">✓ {t.verifiedPackage}</span>
+      </div>
+      <h1>{t.reviewInstall}</h1>
+      <p className="install-lead">{t.reviewBody}</p>
+      <section className="facts approval-facts">
+        <Fact label={t.application} value={intent.displayName} />
+        <Fact
+          label={t.action}
+          value={intent.action === "UPDATE" ? t.update : t.install}
+        />
+        <Fact label={t.appId} value={intent.appId} wide />
+        <Fact
+          label={t.currentState}
+          value={intent.currentVersion ?? t.notInstalled}
+        />
+        <Fact label={t.targetVersion} value={intent.targetVersion} />
+        <Fact label={t.device} value={intent.deviceAlias} />
+        <Fact label={t.trust} value={t.signedStagingRelease} />
+      </section>
+      <p className="approval-warning">{t.explicitApproval}</p>
+      {error ? <p className="flow-error">{error}</p> : null}
+      <div className="approval-actions">
+        <FocusButton
+          id="approval-cancel"
+          row={3}
+          column={0}
+          className="secondary-action"
+          onClick={cancel}
+          disabled={busy}
+        >
+          {t.cancel}
+        </FocusButton>
+        <FocusButton
+          id="approval-confirm"
+          row={3}
+          column={1}
+          className="primary-action danger-aware"
+          onClick={approve}
+          disabled={busy}
+        >
+          {busy ? t.preparing : t.installNow}
+        </FocusButton>
+      </div>
+    </main>
+  );
+}
+
+function ProgressView({
+  locale,
+  status,
+}: {
+  readonly locale: Locale;
+  readonly status: PublicInstallStatus | PublicInstallIntent;
+}) {
+  const t = text(locale);
+  const phases = [
+    "PREPARING",
+    "VERIFYING_PACKAGE",
+    "CHECKING_TV",
+    "INSTALLING",
+    "VERIFYING_INSTALLATION",
+    "COMPLETE",
+  ] as const;
+  const active = phases.indexOf(status.phase);
+  return (
+    <main className="install-flow progress-view" aria-live="polite">
+      <div className="spinner" />
+      <p className="eyebrow">{t.installMode}</p>
+      <h1>{t.installingApplication}</h1>
+      <p className="install-lead">{status.displayName}</p>
+      <ol className="phase-list">
+        {phases.map((phase, index) => (
+          <li
+            key={phase}
+            className={
+              index < active ? "done" : index === active ? "active" : ""
+            }
+          >
+            <span>{index < active ? "✓" : index === active ? "•" : "○"}</span>
+            {t.installPhases[phase]}
+          </li>
+        ))}
+      </ol>
+      <p className="approval-warning">{t.doNotTurnOff}</p>
+    </main>
+  );
+}
+
+function ResultView({
+  locale,
+  status,
+  back,
+}: {
+  readonly locale: Locale;
+  readonly status: PublicInstallStatus;
+  readonly back: () => void;
+}) {
+  const t = text(locale);
+  const success = status.state === "SUCCEEDED" && status.result !== null;
+  return (
+    <main className="install-flow result-view">
+      <div
+        className={success ? "result-symbol success" : "result-symbol failure"}
+      >
+        {success ? "✓" : "!"}
+      </div>
+      <h1>{success ? t.installedSuccessfully : t.installFailed}</h1>
+      <p className="install-lead">
+        {success
+          ? `${status.displayName} · ${status.result?.installedVersion ?? status.targetVersion}`
+          : installErrorLabel(locale, status.errorCode ?? "INSTALL_FAILED")}
       </p>
+      <FocusButton
+        id="result-back"
+        row={1}
+        column={0}
+        className="primary-action"
+        onClick={back}
+      >
+        {t.backToProduct}
+      </FocusButton>
     </main>
   );
 }
@@ -327,6 +605,13 @@ export function App() {
   const [catalog, setCatalog] = useState<TvStoreCatalogResponse | null>(null);
   const [error, setError] = useState(evidence.get("state") === "offline");
   const [view, setView] = useState<View>({ kind: "home" });
+  const [pairCode, setPairCode] = useState("");
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [flowError, setFlowError] = useState<string | null>(null);
+  const [flowBusy, setFlowBusy] = useState(false);
+  const [installStatus, setInstallStatus] =
+    useState<PublicInstallStatus | null>(null);
+  const confirming = useRef(false);
   const [restoreFocus, setRestoreFocus] = useState(
     evidence.get("focus") ?? "product-zui-iptv-player-production",
   );
@@ -371,15 +656,156 @@ export function App() {
       if (product !== undefined) setView({ kind: "detail", product });
     }
   }, [catalog, evidence, view.kind]);
+  useEffect(() => {
+    if (view.kind !== "progress" || sessionToken === null) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const next = await loadInstallStatus(
+          sessionToken,
+          view.intent.intentId,
+        );
+        if (stopped) return;
+        setInstallStatus(next);
+        if (next.state === "SUCCEEDED" || next.state === "FAILED") {
+          if (next.state === "SUCCEEDED") {
+            try {
+              const refreshed = await loadCatalog();
+              if (!stopped) setCatalog(refreshed);
+            } catch {
+              // The verified install result remains authoritative if catalog refresh is delayed.
+            }
+          }
+          if (!stopped)
+            setView({ kind: "result", product: view.product, status: next });
+          return;
+        }
+        timer = setTimeout(() => void poll(), 350);
+      } catch (pollError) {
+        if (!stopped) {
+          const code =
+            typeof pollError === "object" &&
+            pollError !== null &&
+            typeof (pollError as { code?: unknown }).code === "string"
+              ? (pollError as { code: string }).code
+              : "INSTALL_FAILED";
+          setView({
+            kind: "result",
+            product: view.product,
+            status: {
+              ...view.intent,
+              state: "FAILED",
+              result: null,
+              errorCode: code,
+            },
+          });
+        }
+      }
+    };
+    void poll();
+    return () => {
+      stopped = true;
+      if (timer !== undefined) clearTimeout(timer);
+    };
+  }, [sessionToken, view]);
   const changeLocale = (next: Locale) => {
     localStorage.setItem("zui-tv-store-locale", next);
     setLocale(next);
   };
+  const cancelReview = useCallback(() => {
+    if (view.kind !== "review" || sessionToken === null || flowBusy) return;
+    setFlowBusy(true);
+    void cancelInstallIntent(sessionToken, view.intent.intentId)
+      .then(() => {
+        setFlowError(null);
+        setView({ kind: "detail", product: view.product });
+      })
+      .catch((cancelError: unknown) =>
+        setFlowError(
+          cancelError instanceof Error
+            ? cancelError.message
+            : installErrorLabel(locale, "INSTALL_FAILED"),
+        ),
+      )
+      .finally(() => setFlowBusy(false));
+  }, [flowBusy, locale, sessionToken, view]);
   const back = useCallback(() => {
     if (view.kind === "detail") setView({ kind: "home" });
-  }, [view.kind]);
-  const initialFocus =
-    view.kind === "detail" ? "detail-back" : error ? "retry" : restoreFocus;
+    else if (view.kind === "pair")
+      setView({ kind: "detail", product: view.product });
+    else if (view.kind === "review") cancelReview();
+    else if (view.kind === "result")
+      setView({ kind: "detail", product: view.product });
+  }, [cancelReview, view]);
+  const submitPair = () => {
+    if (view.kind !== "pair" || flowBusy) return;
+    const releaseId = view.product.release?.releaseId;
+    const artifactId = view.product.artifact?.artifactId;
+    if (releaseId === undefined || artifactId === undefined) return;
+    setFlowBusy(true);
+    setFlowError(null);
+    void (async () => {
+      const token =
+        sessionToken ?? (await pairInstallService(pairCode)).sessionToken;
+      setSessionToken(token);
+      const intent = await createInstallIntent(token, {
+        productId: view.product.catalogProductId,
+        releaseId,
+        artifactId,
+      });
+      setPairCode("");
+      setView({ kind: "review", product: view.product, intent });
+    })()
+      .catch((pairError: unknown) =>
+        setFlowError(
+          pairError instanceof Error
+            ? pairError.message
+            : installErrorLabel(locale, "INSTALL_FAILED"),
+        ),
+      )
+      .finally(() => setFlowBusy(false));
+  };
+  const confirmInstall = () => {
+    if (
+      view.kind !== "review" ||
+      sessionToken === null ||
+      flowBusy ||
+      confirming.current
+    )
+      return;
+    confirming.current = true;
+    setFlowBusy(true);
+    setFlowError(null);
+    void approveInstallIntent(sessionToken, view.intent.intentId)
+      .then((status) => {
+        setInstallStatus(status);
+        setView({
+          kind: "progress",
+          product: view.product,
+          intent: view.intent,
+        });
+      })
+      .catch((approvalError: unknown) =>
+        setFlowError(
+          approvalError instanceof Error
+            ? approvalError.message
+            : installErrorLabel(locale, "INSTALL_FAILED"),
+        ),
+      )
+      .finally(() => {
+        setFlowBusy(false);
+        confirming.current = false;
+      });
+  };
+  const initialFocus = (() => {
+    if (view.kind === "detail") return "detail-back";
+    if (view.kind === "pair") return "pair-code";
+    if (view.kind === "review") return "approval-cancel";
+    if (view.kind === "result") return "result-back";
+    if (view.kind === "progress") return "progress-none";
+    return error ? "retry" : restoreFocus;
+  })();
   return (
     <TvFocusProvider
       key={`${view.kind}-${error ? "error" : "ok"}`}
@@ -388,7 +814,41 @@ export function App() {
     >
       <div className="app-shell">
         <Brand locale={locale} setLocale={changeLocale} />
-        {error ? (
+        {view.kind === "pair" ? (
+          <PairView
+            locale={locale}
+            code={pairCode}
+            setCode={setPairCode}
+            submit={submitPair}
+            cancel={() => setView({ kind: "detail", product: view.product })}
+            error={flowError}
+            busy={flowBusy}
+          />
+        ) : view.kind === "review" ? (
+          <ApprovalView
+            locale={locale}
+            intent={view.intent}
+            cancel={cancelReview}
+            approve={confirmInstall}
+            busy={flowBusy}
+            error={flowError}
+          />
+        ) : view.kind === "progress" ? (
+          <ProgressView locale={locale} status={installStatus ?? view.intent} />
+        ) : view.kind === "result" ? (
+          <ResultView
+            locale={locale}
+            status={view.status}
+            back={() => {
+              const refreshed = catalog?.products.find(
+                (item) =>
+                  item.productId === view.product.productId &&
+                  item.appId === view.product.appId,
+              );
+              setView({ kind: "detail", product: refreshed ?? view.product });
+            }}
+          />
+        ) : error ? (
           <ErrorView locale={locale} retry={reload} />
         ) : catalog === null ? (
           <main className="state">
@@ -405,7 +865,26 @@ export function App() {
             }}
           />
         ) : (
-          <Detail product={view.product} locale={locale} back={back} />
+          <Detail
+            product={view.product}
+            locale={locale}
+            back={back}
+            install={
+              catalog.mode === "LIVE" &&
+              view.product.deploymentClass === "staging" &&
+              view.product.appId !== "com.zui.webos.store.staging" &&
+              view.product.trustState === "SIGNED" &&
+              (view.product.updateStatus === "NOT_INSTALLED" ||
+                view.product.updateStatus === "UPDATE_AVAILABLE") &&
+              view.product.release !== null &&
+              view.product.artifact !== null
+                ? () => {
+                    setFlowError(null);
+                    setView({ kind: "pair", product: view.product });
+                  }
+                : null
+            }
+          />
         )}
       </div>
     </TvFocusProvider>

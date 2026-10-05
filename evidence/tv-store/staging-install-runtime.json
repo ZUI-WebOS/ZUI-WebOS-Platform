@@ -1,0 +1,44 @@
+{
+  "startedAt": "2026-10-05T09:12:57.446Z",
+  "phases": [
+    {
+      "timestamp": "2026-10-05T09:13:38.736Z",
+      "state": "RUNNING",
+      "phase": "VERIFYING_PACKAGE",
+      "errorCode": null
+    },
+    {
+      "timestamp": "2026-10-05T09:13:39.202Z",
+      "state": "RUNNING",
+      "phase": "CHECKING_TV",
+      "errorCode": null
+    },
+    {
+      "timestamp": "2026-10-05T09:13:42.452Z",
+      "state": "RUNNING",
+      "phase": "INSTALLING",
+      "errorCode": null
+    },
+    {
+      "timestamp": "2026-10-05T09:13:45.775Z",
+      "state": "RUNNING",
+      "phase": "VERIFYING_INSTALLATION",
+      "errorCode": null
+    },
+    {
+      "timestamp": "2026-10-05T09:13:48.745Z",
+      "state": "SUCCEEDED",
+      "phase": "COMPLETE",
+      "errorCode": null
+    }
+  ],
+  "fatalRuntimeExceptions": 0,
+  "errorLogs": 0,
+  "finalState": "SUCCEEDED",
+  "result": {
+    "installedAppId": "com.zui.webos.youtube.staging",
+    "installedVersion": "0.8.4",
+    "postInstallVerified": true
+  },
+  "errorCode": null
+}

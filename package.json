@@ -21,6 +21,7 @@
     "tv-store:dev": "cross-env ZUI_TV_STORE_MODE=DEMO pnpm --filter @zui-webos/tv-store dev",
     "tv-store:api:mock": "pnpm --filter @zui-webos/tv-store build && cross-env ZUI_TV_STORE_MOCK=1 pnpm --filter @zui-webos/tv-store start:api",
     "tv-store:api:live": "cross-env ZUI_TV_STORE_MODE=LIVE pnpm --filter @zui-webos/tv-store build && cross-env ZUI_TV_STORE_MODE=LIVE pnpm --filter @zui-webos/tv-store start:api",
+    "tv-store:install-service": "pnpm --filter @zui-webos/tv-store build && node apps/tv-store/dist/install-server.js",
     "tv-store:package": "cross-env ZUI_TV_STORE_MODE=DEMO pnpm --filter @zui-webos/tv-store package:webos",
     "tv-store:package:live": "cross-env ZUI_TV_STORE_MODE=LIVE pnpm --filter @zui-webos/tv-store package:webos"
   },

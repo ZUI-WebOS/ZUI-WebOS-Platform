@@ -1,6 +1,6 @@
 {
   "name": "@zui-webos/tv-store",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -16,6 +16,10 @@
     "@zui-webos/catalog-contracts": "workspace:*",
     "@zui-webos/catalog-service": "workspace:*",
     "@zui-webos/design-system": "workspace:*",
+    "@zui-webos/installation-planner": "workspace:*",
+    "@zui-webos/installer-service": "workspace:*",
+    "@zui-webos/package-inspector": "workspace:*",
+    "@zui-webos/runtime-paths": "workspace:*",
     "@zui-webos/shared-types": "workspace:*",
     "@zui-webos/signed-release": "workspace:*",
     "@zui-webos/webos-client": "workspace:*",

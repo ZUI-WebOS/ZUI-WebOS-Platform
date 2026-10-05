@@ -5,6 +5,7 @@ import type { DeviceAlias } from "@zui-webos/shared-types";
 import { isPrivateLanIpv4Address } from "./network-policy.js";
 
 export const DEFAULT_TV_STORE_API_PORT = 4274;
+export const DEFAULT_TV_STORE_INSTALL_PORT = 4275;
 export interface TvStoreApiConfig {
   readonly host: string;
   readonly port: number;
@@ -15,19 +16,20 @@ export interface TvStoreApiConfig {
 export interface TvStoreClientConfig {
   readonly mode: "DEMO" | "LIVE";
   readonly apiBase: string | null;
+  readonly installApiBase: string | null;
 }
 
-export function parseTvStorePort(raw: string | undefined): number {
-  if (raw === undefined) return DEFAULT_TV_STORE_API_PORT;
+export function parseTvStorePort(
+  raw: string | undefined,
+  name = "ZUI_TV_STORE_API_PORT",
+  defaultPort = DEFAULT_TV_STORE_API_PORT,
+): number {
+  if (raw === undefined) return defaultPort;
   if (!/^\d{1,5}$/u.test(raw))
-    throw new Error(
-      "ZUI_TV_STORE_API_PORT must be a whole number from 1 to 65535.",
-    );
+    throw new Error(`${name} must be a whole number from 1 to 65535.`);
   const value = Number(raw);
   if (value < 1 || value > 65535)
-    throw new Error(
-      "ZUI_TV_STORE_API_PORT must be a whole number from 1 to 65535.",
-    );
+    throw new Error(`${name} must be a whole number from 1 to 65535.`);
   return value;
 }
 
@@ -38,7 +40,7 @@ function assignedLanIpv4Addresses(): readonly string[] {
     .map((entry) => entry.address);
 }
 
-function validateLiveHost(
+export function validatePrivateLanHost(
   host: string,
   localAddresses: readonly string[],
 ): void {
@@ -69,7 +71,7 @@ export function loadTvStoreApiConfig(
   if (mock) {
     if (host !== "127.0.0.1")
       throw new Error("Mock TV Store API must remain bound to 127.0.0.1.");
-  } else validateLiveHost(host, localAddresses);
+  } else validatePrivateLanHost(host, localAddresses);
   return {
     host,
     port: parseTvStorePort(env.ZUI_TV_STORE_API_PORT),
@@ -87,13 +89,26 @@ export function loadTvStoreClientConfig(
   const mode = env.ZUI_TV_STORE_MODE?.trim() || "DEMO";
   if (mode !== "DEMO" && mode !== "LIVE")
     throw new Error("ZUI_TV_STORE_MODE must be DEMO or LIVE.");
-  if (mode === "DEMO") return { mode, apiBase: null };
+  if (mode === "DEMO") return { mode, apiBase: null, installApiBase: null };
   const host = env.ZUI_TV_STORE_API_HOST?.trim() ?? "";
   if (host.length === 0)
     throw new Error(
       "ZUI_TV_STORE_API_HOST is required when packaging the LIVE TV Store.",
     );
-  validateLiveHost(host, localAddresses);
+  validatePrivateLanHost(host, localAddresses);
   const port = parseTvStorePort(env.ZUI_TV_STORE_API_PORT);
-  return { mode, apiBase: `http://${host}:${String(port)}` };
+  const installPort = parseTvStorePort(
+    env.ZUI_TV_STORE_INSTALL_PORT,
+    "ZUI_TV_STORE_INSTALL_PORT",
+    DEFAULT_TV_STORE_INSTALL_PORT,
+  );
+  if (installPort === port)
+    throw new Error(
+      "TV Store read-only and install services must use different ports.",
+    );
+  return {
+    mode,
+    apiBase: `http://${host}:${String(port)}`,
+    installApiBase: `http://${host}:${String(installPort)}`,
+  };
 }

@@ -28,7 +28,9 @@ export type RiskCode =
   | "APP_ID_COLLISION"
   | "PACKAGE_METADATA_INVALID"
   | "DEVICE_UNREACHABLE"
-  | "ARTIFACT_VERIFICATION_FAILED";
+  | "ARTIFACT_VERIFICATION_FAILED"
+  | "ARTIFACT_TRUST_BLOCK"
+  | "UNKNOWN_VERSION_RELATION";
 export type RiskSeverity = "INFO" | "WARNING" | "BLOCK";
 export type PolicyDecision = "ALLOW_WITH_APPROVAL" | "BLOCK";
 
@@ -292,14 +294,32 @@ export function createInstallationPlan(input: {
     risks.push(
       risk(
         "SAME_VERSION_REINSTALL",
-        "WARNING",
-        "The package version equals the installed version.",
+        "BLOCK",
+        "Same-version reinstallation is forbidden.",
+      ),
+    );
+  if (relation === "UNKNOWN")
+    risks.push(
+      risk(
+        "UNKNOWN_VERSION_RELATION",
+        "BLOCK",
+        "The installed and candidate versions cannot be compared safely.",
+      ),
+    );
+  if (input.signedDistributionTrusted !== true)
+    risks.push(
+      risk(
+        "ARTIFACT_TRUST_BLOCK",
+        "BLOCK",
+        "A current SIGNED_TRUSTED distribution decision is required.",
       ),
     );
   const policyDecision: PolicyDecision =
     registryMatch.deploymentClass === "staging" &&
     verification.status === "VERIFIED_PINNED_ARTIFACT" &&
+    input.signedDistributionTrusted === true &&
     input.connectionStatus === "reachable" &&
+    (relation === "NOT_INSTALLED" || relation === "UPGRADE") &&
     !risks.some((item) => item.severity === "BLOCK")
       ? "ALLOW_WITH_APPROVAL"
       : "BLOCK";

@@ -2,7 +2,7 @@
 
 ## Product boundary
 
-ZUI Store is a normal, rootless LG webOS Developer Mode application. The live-catalog staging identity is `com.zui.webos.store.staging`, version `0.2.0`, title `ZUI Store STAGING`. It browses normalized catalog and real device inventory information and stops at product inspection and update awareness. It has no install, update, uninstall, product launch, signing, Developer Mode extension, storage-clear, command, or production-override path.
+ZUI Store is a normal, rootless LG webOS Developer Mode application. Its current staging identity is `com.zui.webos.store.staging`, version `0.3.1`, title `ZUI Store STAGING`. The catalog boundary documented here remains read-only. A separate explicitly paired, approval-gated service supports signed staging installation; see [installation flow](TV_STORE_INSTALLATION_FLOW.md). There is no production override, uninstall, storage clear, signing, product-launch or Developer Mode extension path in the TV Store.
 
 ## Data flow
 
@@ -91,6 +91,6 @@ pnpm tv-store:package:live
 
 Vite emits an already-minified relative-path web bundle. `ares-package -n` avoids an incompatible second pass by the legacy CLI minifier. The packaging stage copies only the client bundle, `appinfo.json`, and local icons into `dist/webos`; server/API code is not shipped inside the TV IPK.
 
-## Future installation boundary
+## Separate installation boundary
 
-The next milestone is the staging-only installation flow plus user approval UX. It must not be created by widening this read-only API. It requires a separate acceptance review for device targeting, approval UX, exact artifact trust, staging/production policy, and an explicit mutation endpoint boundary.
+The catalog API has not been widened. `/api/tv-store-install/v1` runs in a separately armed PC process with an explicit device, private interface, short-lived pairing and single-use approval. [Real-TV first-install acceptance](../development/TV_STORE_STAGING_INSTALL_REPORT_2026-10-05.md) covers exact trust, fresh inventory, Cancel initial focus, one user-approved installation, post-install verification and protected identities. Display caching is never reused for mutation safety checks. Genuine newer-version UPDATE is the next hardware gate.

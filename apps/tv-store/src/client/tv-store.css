@@ -34,6 +34,10 @@ button:focus-visible {
     0 24px 60px rgba(0, 0, 0, 0.45);
   transform: translateY(-5px) scale(1.018);
 }
+button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
 .app-shell {
   min-height: 100vh;
   padding: 34px 58px 56px;
@@ -328,6 +332,161 @@ main {
 .read-only-note {
   color: #8fa5b9;
   margin-top: 22px;
+}
+.detail-actions {
+  margin-top: 28px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  color: #91a9bd;
+}
+.primary-action,
+.secondary-action {
+  border-radius: 16px;
+  padding: 16px 26px;
+  min-width: 210px;
+  font-size: 20px;
+  font-weight: 800;
+  transition: 0.15s ease;
+}
+.primary-action {
+  border: 1px solid #58ecff;
+  color: #06141b;
+  background: #58ecff;
+}
+.secondary-action {
+  border: 1px solid rgba(141, 201, 235, 0.4);
+  color: #dbeeff;
+  background: #101c2c;
+}
+.danger-aware {
+  background: #7ff1cf;
+  border-color: #7ff1cf;
+}
+.install-flow {
+  max-width: 1120px;
+  min-height: calc(100vh - 145px);
+  padding: 70px 0 45px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+.install-flow h1 {
+  margin: 10px 0 16px;
+  max-width: 950px;
+  font-size: clamp(46px, 4vw, 72px);
+  line-height: 1;
+  letter-spacing: -2.4px;
+}
+.install-lead {
+  max-width: 830px;
+  margin: 0 0 28px;
+  color: #a2b8cb;
+  font-size: 22px;
+  line-height: 1.45;
+}
+.pair-code {
+  width: 430px;
+  border: 2px solid rgba(88, 236, 255, 0.4);
+  border-radius: 18px;
+  padding: 18px 24px;
+  color: #f4f8ff;
+  background: rgba(12, 28, 45, 0.9);
+  font-size: 36px;
+  letter-spacing: 12px;
+  text-align: center;
+}
+.pair-code:focus-visible {
+  outline: 5px solid #58ecff;
+  outline-offset: 5px;
+}
+.approval-actions {
+  margin-top: 30px;
+  display: flex;
+  gap: 20px;
+}
+.approval-facts {
+  width: 100%;
+  margin-top: 12px;
+}
+.approval-warning,
+.flow-error {
+  margin: 22px 0 0;
+  padding: 14px 18px;
+  border-radius: 14px;
+  color: #ffdca0;
+  background: rgba(255, 177, 39, 0.1);
+  border: 1px solid rgba(255, 208, 113, 0.25);
+  font-size: 17px;
+}
+.flow-error {
+  color: #ffbac2;
+  border-color: rgba(255, 129, 144, 0.35);
+  background: rgba(255, 97, 114, 0.1);
+}
+.verified-badge {
+  color: #7ff1cf;
+  font-weight: 750;
+}
+.progress-view {
+  align-items: center;
+  text-align: center;
+}
+.progress-view .spinner {
+  margin-bottom: 22px;
+}
+.phase-list {
+  width: 680px;
+  margin: 16px auto;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.phase-list li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 18px;
+  color: #7790a7;
+  font-size: 20px;
+}
+.phase-list li span {
+  width: 28px;
+  color: #557087;
+  font-size: 24px;
+}
+.phase-list li.done,
+.phase-list li.done span {
+  color: #7ff1cf;
+}
+.phase-list li.active,
+.phase-list li.active span {
+  color: #58ecff;
+  font-weight: 800;
+}
+.result-view {
+  align-items: center;
+  text-align: center;
+}
+.result-symbol {
+  width: 94px;
+  height: 94px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 50px;
+  font-weight: 900;
+}
+.result-symbol.success {
+  color: #7ff1cf;
+  border: 2px solid #7ff1cf;
+  background: rgba(43, 206, 159, 0.13);
+}
+.result-symbol.failure {
+  color: #ff8190;
+  border: 2px solid #ff8190;
+  background: rgba(255, 97, 114, 0.13);
 }
 .state {
   min-height: 70vh;

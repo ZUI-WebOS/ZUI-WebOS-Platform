@@ -6,7 +6,7 @@ ZUI webOS Platform is a rootless management layer and developer-tooling monorepo
 
 ## Current scope
 
-Production-quality local modules now include **ZUI DevMode Keeper**, the read-only **Device Manager Core**, the **Verified Package Inspector**, the approval-gated installer service, signed artifact distribution, operational staging release tooling, normalized catalog/update intelligence, the local **ZUI Web Manager**, and the read-only **ZUI Store STAGING** TV application. The Web Manager can inspect, download and verify trusted catalog artifacts, and generate read-only plans, but intentionally cannot execute an installation, sign/publish a release, or extend Developer Mode. ZUI Store provides remote-first live catalog browsing, actual installed-state correlation, product detail, trust, and update awareness; it performs no installation.
+Local modules include **ZUI DevMode Keeper**, the read-only **Device Manager Core**, the **Verified Package Inspector**, the approval-gated installer service, signed artifact distribution, operational staging release tooling, normalized catalog/update intelligence, the local **ZUI Web Manager**, and **ZUI Store STAGING**. The Web Manager can inspect, download and verify trusted catalog artifacts, and generate read-only plans, but cannot execute an installation, sign/publish a release, or extend Developer Mode. ZUI Store adds explicitly paired, approval-gated signed staging installation through a separate PC service. Production installs, Store self-update and same-version reinstall remain blocked. The first staging INSTALL has real-TV acceptance; genuine newer-version UPDATE acceptance remains open.
 
 The platform is also the management layer for future device, catalog, installer, release-registry, web-manager, and TV-store components. Product source remains in independent repositories:
 
@@ -78,7 +78,7 @@ pnpm tv-store:dev
 pnpm tv-store:package
 ```
 
-The staging IPK uses `com.zui.webos.store.staging` and performs browse → inspect → update awareness only. DEMO remains deterministic for CI and offline work. LIVE uses an operator-selected, assigned RFC1918 private PC LAN IPv4, port `4274`, and device alias `tv`; it never exposes the loopback Web Manager and never falls back to demo data.
+The staging IPK uses `com.zui.webos.store.staging`. DEMO remains deterministic and non-mutating for CI and offline work. LIVE uses an operator-selected, assigned RFC1918 private PC LAN IPv4, port `4274`, and device alias `tv`; it never exposes the loopback Web Manager and never falls back to demo data. Eligible signed staging products can use a separately armed installation service on port `4275`, with short-lived pairing and Cancel-first user review. Do not arm that service on an untrusted LAN.
 
 ```powershell
 $env:ZUI_TV_STORE_API_HOST = '<PC LAN IPv4>'
@@ -89,7 +89,7 @@ pnpm tv-store:api:live
 pnpm tv-store:package:live
 ```
 
-The separate `/api/tv-store/v1` contract is read-only and versioned; it does not expose installation. See [TV Store architecture](docs/architecture/TV_STORE.md), the [MVP report](docs/development/TV_STORE_MVP_REPORT_2026-10-04.md), and the [live catalog report](docs/development/TV_STORE_LIVE_CATALOG_REPORT_2026-10-04.md).
+The separate `/api/tv-store/v1` contract remains read-only; installation uses a different narrow contract and the existing InstallerService. See [installation flow and operator activation](docs/architecture/TV_STORE_INSTALLATION_FLOW.md), [real-TV staging install acceptance](docs/development/TV_STORE_STAGING_INSTALL_REPORT_2026-10-05.md), [TV Store architecture](docs/architecture/TV_STORE.md), the [MVP report](docs/development/TV_STORE_MVP_REPORT_2026-10-04.md), and the [live catalog report](docs/development/TV_STORE_LIVE_CATALOG_REPORT_2026-10-04.md).
 
 Documentation localization convention: `README.md` is the canonical English document. A future `README_TR.md` will be the maintained Turkish user-facing counterpart after its translation-quality gate is defined; no placeholder translation is kept.
 
@@ -116,7 +116,7 @@ Add `--json` for machine-readable results. Configuration precedence is CLI argum
 
 The public webOS CLI does not expose the resulting Developer Mode expiry timestamp. Keeper therefore reports command acceptance and post-command connectivity separately from `expiryVerified`; it never invents an expiry or claims that unknown state is measured.
 
-Package inspection never executes an IPK. Installation Plan V2 is canonical, expiring, and approval-bound. Only a repository-pinned staging artifact can become executable, and execution requires its exact digest:
+Package inspection never executes an IPK. Installation Plan V2 is canonical, expiring, and approval-bound. Only a repository-pinned staging artifact with current signed distribution trust can become executable, and execution requires its exact digest:
 
 ```powershell
 pnpm exec zui-webos install plan C:\path\to\staging.ipk --device tv --save C:\path\to\plan.json
@@ -145,11 +145,12 @@ For staging operators, see [Staging Release Runbook](docs/operations/STAGING_REL
 3. Signed catalog, release/package registry, and update intelligence.
 4. Local Web Manager (read-only inspection, verified fetch, and planning).
 5. TV Store live catalog and real-device state.
-6. Staging-only TV Store installation flow plus user approval UX after separate acceptance.
+6. Staging-only TV Store installation flow and Cancel-first approval UX (first INSTALL accepted on real TV).
+7. Genuine staging UPDATE acceptance, additional app coverage, UX and beta delivery.
 
 ## Contributions
 
-The repository begins with a strict, clean TypeScript baseline. Changes should preserve rootless boundaries, add tests for process behavior, and keep external product repositories independent. Production signing/deployment remains unauthorized. After operational staging release acceptance, the next product milestone is the visible user-facing TV Store MVP.
+Changes should preserve rootless boundaries, add tests for process behavior, and keep external product repositories independent. Production signing/deployment remains unauthorized. Further product work should expand real staging UPDATE, application coverage and user-facing beta UX rather than reopen completed foundation milestones.
 
 ## License
 

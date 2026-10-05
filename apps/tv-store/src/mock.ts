@@ -229,6 +229,7 @@ export function toTvStoreCatalog(
         ) ?? null;
       return {
         productId: `${product.productId}-${identity.deploymentClass}`,
+        catalogProductId: product.productId,
         displayName: product.displayName,
         description: description(product.productId),
         icon: icon(product.productId),

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -16,7 +17,11 @@ import {
   validateTrustStore,
   type PublicTrustStore,
 } from "@zui-webos/signed-release";
-import type { DeviceAlias, InventorySnapshot } from "@zui-webos/shared-types";
+import type {
+  DeviceAlias,
+  InventorySnapshot,
+  PlatformErrorCode,
+} from "@zui-webos/shared-types";
 import {
   NodeProcessRunner,
   PlatformError,
@@ -25,14 +30,145 @@ import {
 import type { TvStoreDataProvider } from "./api.js";
 import type { TvStoreCatalogResponse } from "./contracts.js";
 import { toTvStoreCatalog } from "./mock.js";
+import { readCatalogInvalidationSignal } from "./catalog-invalidation.js";
 
-interface CatalogSources {
+export interface CatalogSources {
   readonly registry: ProductRegistry;
   readonly releases: readonly ProductRelease[];
 }
 
-interface InventoryReader {
+export interface InventoryReader {
   listInstalledApplications(alias: DeviceAlias): Promise<InventorySnapshot>;
+}
+
+export interface InventoryResilienceEvent {
+  readonly requestId: string;
+  readonly deviceAlias: DeviceAlias;
+  readonly attempt: number;
+  readonly maxAttempts: number;
+  readonly result: "COALESCED" | "PASS" | "RETRY" | "FAIL";
+  readonly errorCode: PlatformErrorCode | null;
+  readonly processExitCode: number | null;
+  readonly durationMs: number;
+}
+
+interface ResilientInventoryOptions {
+  readonly maxAttempts?: number;
+  readonly retryDelayMs?: number;
+  readonly sleep?: (delayMs: number) => Promise<void>;
+  readonly requestId?: () => string;
+  readonly onEvent?: (event: InventoryResilienceEvent) => void;
+}
+
+const TRANSIENT_INVENTORY_ERRORS = new Set<PlatformErrorCode>([
+  "COMMAND_TIMEOUT",
+  "DEVICE_INVENTORY_FAILED",
+  "DEVICE_UNREACHABLE",
+]);
+
+function processExitCode(error: PlatformError): number | null {
+  const match = /^exitCode=(?<code>-?\d+)$/u.exec(error.detail ?? "");
+  return match?.groups?.code === undefined ? null : Number(match.groups.code);
+}
+
+/**
+ * Provides fresh, device-scoped inventory acquisition without a data cache.
+ * Concurrent callers share one operation, while transient LG CLI failures are
+ * retried with bounded backoff. Integrity and parsing failures never retry.
+ */
+export class ResilientDeviceInventory implements InventoryReader {
+  private readonly maxAttempts: number;
+  private readonly retryDelayMs: number;
+  private readonly sleep: (delayMs: number) => Promise<void>;
+  private readonly createRequestId: () => string;
+  private readonly onEvent: (event: InventoryResilienceEvent) => void;
+  private readonly inFlight = new Map<
+    DeviceAlias,
+    { readonly requestId: string; readonly promise: Promise<InventorySnapshot> }
+  >();
+
+  constructor(
+    private readonly reader: InventoryReader,
+    options: ResilientInventoryOptions = {},
+  ) {
+    this.maxAttempts = options.maxAttempts ?? 3;
+    this.retryDelayMs = options.retryDelayMs ?? 500;
+    this.sleep =
+      options.sleep ??
+      ((delayMs) =>
+        new Promise((resolve) => {
+          setTimeout(resolve, delayMs);
+        }));
+    this.createRequestId = options.requestId ?? randomUUID;
+    this.onEvent = options.onEvent ?? (() => undefined);
+  }
+
+  listInstalledApplications(alias: DeviceAlias): Promise<InventorySnapshot> {
+    const existing = this.inFlight.get(alias);
+    if (existing !== undefined) {
+      this.onEvent({
+        requestId: existing.requestId,
+        deviceAlias: alias,
+        attempt: 0,
+        maxAttempts: this.maxAttempts,
+        result: "COALESCED",
+        errorCode: null,
+        processExitCode: null,
+        durationMs: 0,
+      });
+      return existing.promise;
+    }
+    const requestId = this.createRequestId();
+    const promise = this.readFresh(alias, requestId).finally(() => {
+      if (this.inFlight.get(alias)?.promise === promise)
+        this.inFlight.delete(alias);
+    });
+    this.inFlight.set(alias, { requestId, promise });
+    return promise;
+  }
+
+  private async readFresh(
+    alias: DeviceAlias,
+    requestId: string,
+  ): Promise<InventorySnapshot> {
+    for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
+      const started = performance.now();
+      try {
+        const value = await this.reader.listInstalledApplications(alias);
+        this.onEvent({
+          requestId,
+          deviceAlias: alias,
+          attempt,
+          maxAttempts: this.maxAttempts,
+          result: "PASS",
+          errorCode: null,
+          processExitCode: null,
+          durationMs: Math.round(performance.now() - started),
+        });
+        return value;
+      } catch (error: unknown) {
+        const code = error instanceof PlatformError ? error.code : null;
+        const retry =
+          code !== null &&
+          TRANSIENT_INVENTORY_ERRORS.has(code) &&
+          attempt < this.maxAttempts;
+        this.onEvent({
+          requestId,
+          deviceAlias: alias,
+          attempt,
+          maxAttempts: this.maxAttempts,
+          result: retry ? "RETRY" : "FAIL",
+          errorCode: code,
+          processExitCode:
+            error instanceof PlatformError ? processExitCode(error) : null,
+          durationMs: Math.round(performance.now() - started),
+        });
+        if (!retry) throw error;
+        await this.sleep(this.retryDelayMs * 2 ** (attempt - 1));
+      }
+    }
+    throw new Error("Unreachable inventory retry state.");
+  }
 }
 
 interface LiveTvStoreDependencies {
@@ -42,6 +178,7 @@ interface LiveTvStoreDependencies {
   readonly now?: () => Date;
   readonly retryDelayMs?: number;
   readonly cacheMs?: number;
+  readonly readInvalidationSignal?: () => Promise<string>;
 }
 
 function repositoryUrl(path: string): URL {
@@ -78,7 +215,7 @@ export async function loadTvStoreCatalogSources(): Promise<CatalogSources> {
   return { registry: registryValue, releases: releases as ProductRelease[] };
 }
 
-async function loadPublicTrustStore(): Promise<PublicTrustStore> {
+export async function loadPublicTrustStore(): Promise<PublicTrustStore> {
   const value: unknown = JSON.parse(
     await readFile(repositoryUrl("trust/keys.json"), "utf8"),
   );
@@ -134,8 +271,9 @@ export class LiveTvStoreDataProvider implements TvStoreDataProvider {
     readonly CatalogCacheRecord[]
   >;
   private readonly now: () => Date;
-  private readonly retryDelayMs: number;
   private readonly cacheMs: number;
+  private readonly readInvalidationSignal: () => Promise<string>;
+  private invalidationSignal: string | null = null;
   private cached: {
     readonly expiresAt: number;
     readonly value: TvStoreCatalogResponse;
@@ -146,36 +284,23 @@ export class LiveTvStoreDataProvider implements TvStoreDataProvider {
     private readonly deviceAlias: DeviceAlias,
     dependencies: LiveTvStoreDependencies = {},
   ) {
-    this.inventory = dependencies.inventory ?? defaultInventory();
+    this.inventory = new ResilientDeviceInventory(
+      dependencies.inventory ?? defaultInventory(),
+      dependencies.retryDelayMs === undefined
+        ? {}
+        : { retryDelayMs: dependencies.retryDelayMs },
+    );
     this.loadSources = dependencies.loadSources ?? loadTvStoreCatalogSources;
     this.loadCacheRecords =
       dependencies.loadCacheRecords ?? loadTvStoreCacheRecords;
     this.now = dependencies.now ?? (() => new Date());
-    this.retryDelayMs = dependencies.retryDelayMs ?? 500;
     this.cacheMs = dependencies.cacheMs ?? 300_000;
+    this.readInvalidationSignal =
+      dependencies.readInvalidationSignal ?? readCatalogInvalidationSignal;
   }
 
   private async readInventory(): Promise<InventorySnapshot> {
-    let failure: unknown;
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      try {
-        return await this.inventory.listInstalledApplications(this.deviceAlias);
-      } catch (error) {
-        failure = error;
-        const code = error instanceof PlatformError ? error.code : "";
-        if (
-          attempt === 3 ||
-          ![
-            "COMMAND_TIMEOUT",
-            "DEVICE_INVENTORY_FAILED",
-            "DEVICE_UNREACHABLE",
-          ].includes(code)
-        )
-          throw error;
-        await new Promise((resolve) => setTimeout(resolve, this.retryDelayMs));
-      }
-    }
-    throw failure;
+    return this.inventory.listInstalledApplications(this.deviceAlias);
   }
 
   private async refreshCatalog(
@@ -204,6 +329,12 @@ export class LiveTvStoreDataProvider implements TvStoreDataProvider {
 
   async catalog(): Promise<TvStoreCatalogResponse> {
     const observedAt = this.now();
+    const signal = await this.readInvalidationSignal();
+    if (this.invalidationSignal === null) this.invalidationSignal = signal;
+    else if (signal !== this.invalidationSignal) {
+      this.invalidationSignal = signal;
+      this.cached = null;
+    }
     if (this.cached !== null && observedAt.getTime() < this.cached.expiresAt)
       return this.cached.value;
     if (this.inFlight !== null) return this.inFlight;

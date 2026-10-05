@@ -31,6 +31,59 @@ const strings = {
     mock: "DEMO CATALOG",
     staging: "STAGING",
     production: "PRODUCTION",
+    install: "Install",
+    update: "Update",
+    installNow: "Install now",
+    cancel: "Cancel",
+    pair: "Pair securely",
+    pairCode: "Eight-digit pairing code",
+    installMode: "STAGING INSTALL MODE",
+    pairTitle: "Pair with the armed service",
+    pairBody:
+      "Enter the short-lived code shown by the operator. It is used only for this staging session.",
+    preparing: "Preparing…",
+    verifiedPackage: "Verified package",
+    signedStagingRelease: "Signed staging release",
+    reviewInstall: "Review before installing",
+    reviewBody:
+      "Confirm the exact staging application, version, device, and trust decision.",
+    application: "Application",
+    action: "Action",
+    currentState: "Current state",
+    targetVersion: "Target version",
+    device: "Device",
+    explicitApproval:
+      "Cancel is selected by default. Move deliberately to Install now to approve once.",
+    installingApplication: "Installing staging application",
+    doNotTurnOff:
+      "Keep the TV and developer PC available while verification completes.",
+    installedSuccessfully: "Installed successfully",
+    installFailed: "Installation stopped safely",
+    backToProduct: "Back to product",
+    installUnavailable:
+      "Installation is available only for eligible, signed staging releases while Install Mode is armed.",
+    installArmedHint:
+      "Requires an operator-armed, short-lived staging session.",
+    installPhases: {
+      PREPARING: "Preparing",
+      VERIFYING_PACKAGE: "Verifying package",
+      CHECKING_TV: "Checking TV",
+      INSTALLING: "Installing",
+      VERIFYING_INSTALLATION: "Verifying installation",
+      COMPLETE: "Complete",
+    },
+    installErrors: {
+      INSTALL_FAILED: "The installation could not be completed.",
+      PLAN_CHANGED: "The installation plan changed. Review again.",
+      PLAN_STALE: "The installation plan changed. Review again.",
+      PLAN_EXPIRED: "The installation plan expired. Review again.",
+      SESSION_INVALID: "The install session expired. Re-arm and pair again.",
+      SESSION_EXPIRED: "The install session expired. Re-arm and pair again.",
+      DEVICE_UNREACHABLE: "The TV is not reachable.",
+      INSTALL_VERIFICATION_FAILED:
+        "The installation result could not be verified.",
+      INSTALL_POLICY_BLOCKED: "Installation policy blocked this operation.",
+    },
   },
   tr: {
     eyebrow: "ROOTLESS WEBOS KÜTÜPHANENİZ",
@@ -59,11 +112,69 @@ const strings = {
     mock: "DEMO KATALOG",
     staging: "STAGING",
     production: "PRODUCTION",
+    install: "Yükle",
+    update: "Güncelle",
+    installNow: "Şimdi yükle",
+    cancel: "İptal",
+    pair: "Güvenli eşleştir",
+    pairCode: "Sekiz haneli eşleştirme kodu",
+    installMode: "STAGING KURULUM MODU",
+    pairTitle: "Hazır kurulum hizmetiyle eşleştirin",
+    pairBody:
+      "Operatörün ekranındaki kısa süreli kodu girin. Kod yalnızca bu staging oturumunda kullanılır.",
+    preparing: "Hazırlanıyor…",
+    verifiedPackage: "Doğrulanmış paket",
+    signedStagingRelease: "İmzalı staging sürümü",
+    reviewInstall: "Yüklemeden önce kontrol edin",
+    reviewBody:
+      "Staging uygulamasını, sürümü, cihazı ve güven kararını doğrulayın.",
+    application: "Uygulama",
+    action: "İşlem",
+    currentState: "Mevcut durum",
+    targetVersion: "Hedef sürüm",
+    device: "Cihaz",
+    explicitApproval:
+      "Başlangıçta İptal seçilidir. Bir kez onaylamak için bilinçli olarak Şimdi yükle seçeneğine geçin.",
+    installingApplication: "Staging uygulaması yükleniyor",
+    doNotTurnOff:
+      "Doğrulama tamamlanana kadar TV'yi ve geliştirici bilgisayarını açık tutun.",
+    installedSuccessfully: "Başarıyla yüklendi",
+    installFailed: "Kurulum güvenli biçimde durduruldu",
+    backToProduct: "Ürüne dön",
+    installUnavailable:
+      "Kurulum yalnızca Kurulum Modu hazırken uygun ve imzalı staging sürümleri için kullanılabilir.",
+    installArmedHint:
+      "Operatör tarafından açılan kısa süreli staging oturumu gerekir.",
+    installPhases: {
+      PREPARING: "Hazırlanıyor",
+      VERIFYING_PACKAGE: "Paket doğrulanıyor",
+      CHECKING_TV: "TV kontrol ediliyor",
+      INSTALLING: "Yükleniyor",
+      VERIFYING_INSTALLATION: "Kurulum doğrulanıyor",
+      COMPLETE: "Tamamlandı",
+    },
+    installErrors: {
+      INSTALL_FAILED: "Kurulum tamamlanamadı.",
+      PLAN_CHANGED: "Kurulum planı değişti. Yeniden kontrol edin.",
+      PLAN_STALE: "Kurulum planı değişti. Yeniden kontrol edin.",
+      PLAN_EXPIRED: "Kurulum planının süresi doldu. Yeniden kontrol edin.",
+      SESSION_INVALID:
+        "Kurulum oturumunun süresi doldu. Hizmeti yeniden hazırlayıp eşleştirin.",
+      SESSION_EXPIRED:
+        "Kurulum oturumunun süresi doldu. Hizmeti yeniden hazırlayıp eşleştirin.",
+      DEVICE_UNREACHABLE: "TV'ye ulaşılamıyor.",
+      INSTALL_VERIFICATION_FAILED: "Kurulum sonucu doğrulanamadı.",
+      INSTALL_POLICY_BLOCKED: "Kurulum politikası bu işlemi engelledi.",
+    },
   },
 } as const;
 
 export function text(locale: Locale) {
   return strings[locale];
+}
+export function installErrorLabel(locale: Locale, code: string): string {
+  const errors = strings[locale].installErrors as Record<string, string>;
+  return errors[code] ?? strings[locale].installErrors.INSTALL_FAILED;
 }
 export function updateLabel(locale: Locale, status: UpdateStatus): string {
   const labels: Record<Locale, Record<UpdateStatus, string>> = {

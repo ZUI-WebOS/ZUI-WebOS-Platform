@@ -11,6 +11,43 @@ import { App } from "../../apps/tv-store/src/client/App.js";
 import { mockTvStoreCatalog } from "../../apps/tv-store/src/mock.js";
 import * as client from "../../apps/tv-store/src/client/api-client.js";
 
+function liveEligibleCatalog() {
+  return {
+    ...mockTvStoreCatalog,
+    mode: "LIVE" as const,
+    products: mockTvStoreCatalog.products.map((product) =>
+      product.appId === "com.zui.webos.youtube.staging"
+        ? {
+            ...product,
+            installed: false,
+            installedVersion: null,
+            updateStatus: "NOT_INSTALLED" as const,
+            trustState: "SIGNED" as const,
+          }
+        : product,
+    ),
+  };
+}
+
+const intent = {
+  intentId: "11111111-1111-4111-8111-111111111111",
+  expiresAt: "2026-10-05T09:10:00.000Z",
+  deviceAlias: "tv",
+  productId: "zui-youtube-webos",
+  releaseId: "zui-staging-youtube-0.8.4",
+  artifactId: "zui-youtube-webos-0.8.4-staging",
+  displayName: "ZUI YouTube for webOS",
+  appId: "com.zui.webos.youtube.staging",
+  currentVersion: null,
+  targetVersion: "0.8.4",
+  action: "INSTALL" as const,
+  channel: "staging" as const,
+  trustDecision: "SIGNED_TRUSTED" as const,
+  signingKeyId: "B".repeat(64),
+  state: "AWAITING_APPROVAL" as const,
+  phase: "PREPARING" as const,
+};
+
 describe("TV Store UI", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -120,5 +157,95 @@ describe("TV Store UI", () => {
       await screen.findByText("<img src=x onerror=alert(1)>"),
     ).toBeTruthy();
     expect(document.querySelector(".product-card img")).toBeNull();
+  });
+
+  it("pairs, creates a review with Cancel focused, and cancels without approval", async () => {
+    vi.mocked(client.loadCatalog).mockResolvedValueOnce(liveEligibleCatalog());
+    vi.spyOn(client, "pairInstallService").mockResolvedValue({
+      sessionToken: "s".repeat(43),
+      expiresAt: intent.expiresAt,
+      deviceAlias: "tv",
+      scope: "STAGING_INSTALL",
+    });
+    vi.spyOn(client, "createInstallIntent").mockResolvedValue(intent);
+    const cancel = vi.spyOn(client, "cancelInstallIntent").mockResolvedValue({
+      ...intent,
+      state: "CANCELLED",
+      result: null,
+      errorCode: "CANCELLED",
+    });
+    render(<App />);
+    const identity = await screen.findByText("com.zui.webos.youtube.staging");
+    fireEvent.click(identity.closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+    fireEvent.change(screen.getByLabelText("Eight-digit pairing code"), {
+      target: { value: "12345678" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Pair securely" }));
+    const cancelButton = await waitFor(() => {
+      const value = document.querySelector<HTMLButtonElement>(
+        '[data-focus-id="approval-cancel"]',
+      );
+      expect(value).not.toBeNull();
+      return value!;
+    });
+    await waitFor(() => expect(cancelButton).toBe(document.activeElement));
+    expect(screen.getByText("Signed staging release")).toBeTruthy();
+    fireEvent.click(cancelButton);
+    await waitFor(() => expect(cancel).toHaveBeenCalledOnce());
+    expect(client.createInstallIntent).toHaveBeenCalledWith(
+      "s".repeat(43),
+      expect.objectContaining({ productId: "zui-youtube-webos" }),
+    );
+    expect(await screen.findByRole("button", { name: "Install" })).toBeTruthy();
+  });
+
+  it("requires deliberate confirmation and renders verified success phases", async () => {
+    vi.mocked(client.loadCatalog).mockResolvedValue(liveEligibleCatalog());
+    vi.spyOn(client, "pairInstallService").mockResolvedValue({
+      sessionToken: "s".repeat(43),
+      expiresAt: intent.expiresAt,
+      deviceAlias: "tv",
+      scope: "STAGING_INSTALL",
+    });
+    vi.spyOn(client, "createInstallIntent").mockResolvedValue(intent);
+    vi.spyOn(client, "approveInstallIntent").mockResolvedValue({
+      ...intent,
+      state: "RUNNING",
+      phase: "INSTALLING",
+      result: null,
+      errorCode: null,
+    });
+    vi.spyOn(client, "loadInstallStatus").mockResolvedValue({
+      ...intent,
+      state: "SUCCEEDED",
+      phase: "COMPLETE",
+      result: {
+        installedAppId: "com.zui.webos.youtube.staging",
+        installedVersion: "0.8.4",
+        postInstallVerified: true,
+      },
+      errorCode: null,
+    });
+    render(<App />);
+    const identity = await screen.findByText("com.zui.webos.youtube.staging");
+    fireEvent.click(identity.closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+    fireEvent.change(screen.getByLabelText("Eight-digit pairing code"), {
+      target: { value: "12345678" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Pair securely" }));
+    await waitFor(() => {
+      const value = document.querySelector<HTMLButtonElement>(
+        '[data-focus-id="approval-cancel"]',
+      );
+      expect(value).toBe(document.activeElement);
+    });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    const confirm = screen.getByRole("button", { name: "Install now" });
+    expect(confirm).toBe(document.activeElement);
+    fireEvent.click(confirm);
+    expect(await screen.findByText("Installed successfully")).toBeTruthy();
+    expect(screen.getByText(/0\.8\.4/u)).toBeTruthy();
   });
 });

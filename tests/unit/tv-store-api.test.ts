@@ -11,7 +11,10 @@ import {
   loadLiveCatalog,
   validateLiveApiBase,
 } from "../../apps/tv-store/src/client/api-client.js";
-import { LiveTvStoreDataProvider } from "../../apps/tv-store/src/live.js";
+import {
+  LiveTvStoreDataProvider,
+  ResilientDeviceInventory,
+} from "../../apps/tv-store/src/live.js";
 import {
   tvStoreMockRegistry,
   tvStoreMockReleases,
@@ -22,10 +25,144 @@ import type {
   ApplicationVersion,
   InstalledApplication,
   InstalledApplicationId,
+  InventorySnapshot,
 } from "@zui-webos/shared-types";
 import { PlatformError, validateDeviceAlias } from "@zui-webos/webos-client";
 
 const servers: ReturnType<typeof createTvStoreServer>[] = [];
+
+function resilientInventory(version = "1.0.1"): InventorySnapshot {
+  return {
+    device: validateDeviceAlias("tv"),
+    timestamp: "2026-10-05T10:00:00.000Z",
+    source: "ares-install-listfull",
+    applications: [
+      {
+        id: "com.zui.player" as InstalledApplicationId,
+        version: version as ApplicationVersion,
+        source: "ares-install-listfull",
+        metadata: {},
+      },
+    ],
+  };
+}
+
+describe("TV Store device inventory resilience", () => {
+  it("retries a transient failure and emits sanitized attempt evidence", async () => {
+    let calls = 0;
+    const events: {
+      result: string;
+      errorCode: string | null;
+      processExitCode: number | null;
+    }[] = [];
+    const service = new ResilientDeviceInventory(
+      {
+        listInstalledApplications: async () => {
+          calls += 1;
+          if (calls === 1)
+            throw new PlatformError(
+              "DEVICE_INVENTORY_FAILED",
+              "Transient failure.",
+              "exitCode=1",
+            );
+          return resilientInventory();
+        },
+      },
+      {
+        retryDelayMs: 0,
+        requestId: () => "inventory-request",
+        onEvent: (event) => events.push(event),
+      },
+    );
+
+    await expect(
+      service.listInstalledApplications(validateDeviceAlias("tv")),
+    ).resolves.toMatchObject({ device: "tv" });
+    expect(calls).toBe(2);
+    expect(events).toEqual([
+      expect.objectContaining({
+        result: "RETRY",
+        errorCode: "DEVICE_INVENTORY_FAILED",
+        processExitCode: 1,
+      }),
+      expect.objectContaining({
+        result: "PASS",
+        errorCode: null,
+        processExitCode: null,
+      }),
+    ]);
+    expect(JSON.stringify(events)).not.toMatch(/passphrase|token|prisoner/iu);
+  });
+
+  it.each(["DEVICE_INVENTORY_FAILED", "COMMAND_TIMEOUT"] as const)(
+    "fails closed after bounded retries for permanent %s",
+    async (code) => {
+      let calls = 0;
+      const service = new ResilientDeviceInventory(
+        {
+          listInstalledApplications: async () => {
+            calls += 1;
+            throw new PlatformError(code, "Permanent failure.");
+          },
+        },
+        { retryDelayMs: 0 },
+      );
+      await expect(
+        service.listInstalledApplications(validateDeviceAlias("tv")),
+      ).rejects.toMatchObject({ code });
+      expect(calls).toBe(3);
+    },
+  );
+
+  it("does not retry malformed inventory", async () => {
+    let calls = 0;
+    const service = new ResilientDeviceInventory(
+      {
+        listInstalledApplications: async () => {
+          calls += 1;
+          throw new PlatformError(
+            "MALFORMED_APP_INVENTORY",
+            "Malformed inventory.",
+          );
+        },
+      },
+      { retryDelayMs: 0 },
+    );
+    await expect(
+      service.listInstalledApplications(validateDeviceAlias("tv")),
+    ).rejects.toMatchObject({ code: "MALFORMED_APP_INVENTORY" });
+    expect(calls).toBe(1);
+  });
+
+  it("coalesces concurrent reads per device but never caches completed data", async () => {
+    let calls = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const service = new ResilientDeviceInventory({
+      listInstalledApplications: async () => {
+        calls += 1;
+        if (calls === 1) await gate;
+        return resilientInventory(calls === 1 ? "1.0.1" : "1.0.2");
+      },
+    });
+    const alias = validateDeviceAlias("tv");
+    const first = service.listInstalledApplications(alias);
+    const concurrent = service.listInstalledApplications(alias);
+    release();
+    await expect(Promise.all([first, concurrent])).resolves.toMatchObject([
+      { applications: [{ version: "1.0.1" }] },
+      { applications: [{ version: "1.0.1" }] },
+    ]);
+    expect(calls).toBe(1);
+    await expect(
+      service.listInstalledApplications(alias),
+    ).resolves.toMatchObject({ applications: [{ version: "1.0.2" }] });
+    expect(calls).toBe(2);
+  });
+});
+
 afterEach(async () => {
   vi.unstubAllGlobals();
   await Promise.all(
@@ -252,6 +389,56 @@ describe("TV Store read-only API", () => {
     ).toMatchObject({ installed: true, deploymentClass: "production" });
     await expect(provider.catalog()).resolves.toBe(catalog);
     expect(inventoryCalls).toBe(3);
+  });
+
+  it("invalidates the read-only catalog cache after a successful install signal", async () => {
+    let signal = "before";
+    let installed = false;
+    let inventoryCalls = 0;
+    const provider = new LiveTvStoreDataProvider(validateDeviceAlias("tv"), {
+      inventory: {
+        listInstalledApplications: async (device) => {
+          inventoryCalls += 1;
+          return {
+            device,
+            timestamp: "2026-10-05T09:00:00.000Z",
+            source: "ares-install-listfull",
+            applications: installed
+              ? [
+                  {
+                    id: "com.zui.webos.youtube.staging" as InstalledApplicationId,
+                    version: "0.8.4" as ApplicationVersion,
+                    source: "ares-install-listfull",
+                    metadata: {},
+                  },
+                ]
+              : [],
+          };
+        },
+      },
+      loadSources: async () => ({
+        registry: tvStoreMockRegistry,
+        releases: tvStoreMockReleases,
+      }),
+      loadCacheRecords: async () => [],
+      readInvalidationSignal: async () => signal,
+      now: () => new Date("2026-10-05T09:00:00.000Z"),
+    });
+    const before = await provider.catalog();
+    expect(
+      before.products.find(
+        (item) => item.appId === "com.zui.webos.youtube.staging",
+      )?.installed,
+    ).toBe(false);
+    installed = true;
+    signal = "after";
+    const after = await provider.catalog();
+    expect(
+      after.products.find(
+        (item) => item.appId === "com.zui.webos.youtube.staging",
+      ),
+    ).toMatchObject({ installed: true, installedVersion: "0.8.4" });
+    expect(inventoryCalls).toBe(2);
   });
 
   it("serves only GET/HEAD/OPTIONS and has no mutation, query, or private-data surface", async () => {

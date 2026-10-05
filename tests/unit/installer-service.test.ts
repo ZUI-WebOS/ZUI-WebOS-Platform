@@ -55,7 +55,7 @@ class MemoryReceiptStore implements ReceiptStore {
 
 function inventory(
   device = "tv",
-  stagingVersion: string | null = "0.8.4",
+  stagingVersion: string | null = null,
 ): InventorySnapshot {
   const application = (id: string, version: string) => ({
     id: id as InstalledApplicationId,
@@ -80,11 +80,14 @@ function inventory(
 class FakeAdapter implements InstallerAdapter {
   installs = 0;
   constructor(
-    public current: InventorySnapshot,
-    public after: InventorySnapshot | Error = current,
+    public current: InventorySnapshot | Error,
+    public after: InventorySnapshot | Error = inventory("tv", "0.8.4"),
   ) {}
   async listInstalledApplications(): Promise<InventorySnapshot> {
-    if (this.installs === 0) return this.current;
+    if (this.installs === 0) {
+      if (this.current instanceof Error) throw this.current;
+      return this.current;
+    }
     if (this.after instanceof Error) throw this.after;
     return this.after;
   }
@@ -176,6 +179,7 @@ async function setup(
     inventory: inventory(),
     connectionStatus: "reachable",
     artifactVerification: verification,
+    signedDistributionTrusted: true,
     now: options.now ?? new Date("2026-10-02T00:00:00.000Z"),
   });
   return { path, plan, release, registry };
@@ -190,7 +194,7 @@ describe("approval-gated installer", () => {
       adapter,
       receipts,
       () => new Date("2026-10-02T00:01:00.000Z"),
-    ).execute(plan, plan.planDigest, [release]);
+    ).execute(plan, plan.planDigest, [release], { origin: "TV_STORE" });
     expect(result).toMatchObject({
       commandAccepted: true,
       postInstallVerified: true,
@@ -201,6 +205,7 @@ describe("approval-gated installer", () => {
       approvalValidated: true,
       postInstallVerified: true,
       artifactSha256: plan.artifact.sha256,
+      origin: "TV_STORE",
     });
     await expect(
       new InstallerService(
@@ -340,6 +345,19 @@ describe("approval-gated installer", () => {
       result: "FAILED",
       postInstallVerified: false,
     });
+  });
+
+  it("never invokes ares-install when authoritative pre-install inventory fails", async () => {
+    const { plan, release } = await setup();
+    const adapter = new FakeAdapter(new Error("inventory unavailable"));
+    await expect(
+      new InstallerService(
+        adapter,
+        new MemoryReceiptStore(),
+        () => new Date("2026-10-02T00:01:00.000Z"),
+      ).execute(plan, plan.planDigest, [release]),
+    ).rejects.toThrow("inventory unavailable");
+    expect(adapter.installs).toBe(0);
   });
 
   it("blocks unpinned staging metadata and identity/hash mismatches at planning", async () => {

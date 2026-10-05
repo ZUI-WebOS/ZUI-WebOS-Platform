@@ -1,6 +1,6 @@
 {
   "id": "com.zui.webos.store.staging",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "vendor": "ZUI-WebOS",
   "type": "web",
   "main": "index.html",

@@ -284,6 +284,7 @@ export class WebOSCliAdapter {
       throw new PlatformError(
         "DEVICE_INVENTORY_FAILED",
         `Unable to read installed applications from '${alias}'.`,
+        `exitCode=${String(result.exitCode)}`,
       );
     }
     const applications = parseInstalledApplications(result.stdout);
