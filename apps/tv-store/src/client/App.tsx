@@ -442,7 +442,7 @@ function ApprovalView({
         <span className="channel staging">{t.staging}</span>
         <span className="verified-badge">✓ {t.verifiedPackage}</span>
       </div>
-      <h1>{t.reviewInstall}</h1>
+      <h1>{intent.action === "UPDATE" ? t.reviewUpdate : t.reviewInstall}</h1>
       <p className="install-lead">{t.reviewBody}</p>
       <section className="facts approval-facts">
         <Fact label={t.application} value={intent.displayName} />
@@ -452,14 +452,21 @@ function ApprovalView({
         />
         <Fact label={t.appId} value={intent.appId} wide />
         <Fact
-          label={t.currentState}
+          label={intent.action === "UPDATE" ? t.currentVersion : t.currentState}
           value={intent.currentVersion ?? t.notInstalled}
         />
-        <Fact label={t.targetVersion} value={intent.targetVersion} />
+        <Fact
+          label={intent.action === "UPDATE" ? t.newVersion : t.targetVersion}
+          value={intent.targetVersion}
+        />
         <Fact label={t.device} value={intent.deviceAlias} />
         <Fact label={t.trust} value={t.signedStagingRelease} />
       </section>
-      <p className="approval-warning">{t.explicitApproval}</p>
+      <p className="approval-warning">
+        {intent.action === "UPDATE"
+          ? t.explicitUpdateApproval
+          : t.explicitApproval}
+      </p>
       {error ? <p className="flow-error">{error}</p> : null}
       <div className="approval-actions">
         <FocusButton
@@ -480,7 +487,11 @@ function ApprovalView({
           onClick={approve}
           disabled={busy}
         >
-          {busy ? t.preparing : t.installNow}
+          {busy
+            ? t.preparing
+            : intent.action === "UPDATE"
+              ? t.updateNow
+              : t.installNow}
         </FocusButton>
       </div>
     </main>
@@ -507,8 +518,14 @@ function ProgressView({
   return (
     <main className="install-flow progress-view" aria-live="polite">
       <div className="spinner" />
-      <p className="eyebrow">{t.installMode}</p>
-      <h1>{t.installingApplication}</h1>
+      <p className="eyebrow">
+        {status.action === "UPDATE" ? t.updateMode : t.installMode}
+      </p>
+      <h1>
+        {status.action === "UPDATE"
+          ? t.updatingApplication
+          : t.installingApplication}
+      </h1>
       <p className="install-lead">{status.displayName}</p>
       <ol className="phase-list">
         {phases.map((phase, index) => (
@@ -546,7 +563,15 @@ function ResultView({
       >
         {success ? "✓" : "!"}
       </div>
-      <h1>{success ? t.installedSuccessfully : t.installFailed}</h1>
+      <h1>
+        {success
+          ? status.action === "UPDATE"
+            ? t.updatedSuccessfully
+            : t.installedSuccessfully
+          : status.action === "UPDATE"
+            ? t.updateFailed
+            : t.installFailed}
+      </h1>
       <p className="install-lead">
         {success
           ? `${status.displayName} · ${status.result?.installedVersion ?? status.targetVersion}`

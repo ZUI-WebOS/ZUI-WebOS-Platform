@@ -145,6 +145,13 @@ See [installation flow](../architecture/TV_STORE_INSTALLATION_FLOW.md) and [hard
 
 ## Trust assumptions
 
+Staging UPDATE uses the same protected identity/signature gates and fresh
+installed-version TOCTOU checks, with no package-command retry. Backend-resolved
+receipt provenance adds previous/target versions and logical IDs, not client
+paths or tokens. An explicit source acceptance branch must be reachable under
+`origin/` and have clean exact HEAD/registered origin; production main is not
+rewritten to satisfy release preparation.
+
 The locally installed LG webOS CLI and the device registry are trusted user-managed dependencies. A registered alias does not prove reachability. A successful extension launch marker plus a separate post-command connectivity check proves command-level acceptance, not the exact resulting expiry.
 
 ## Out of scope

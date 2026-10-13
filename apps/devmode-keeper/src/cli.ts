@@ -69,6 +69,7 @@ interface ParsedArguments {
   readonly app?: string;
   readonly save?: string;
   readonly approve?: string;
+  readonly sourceRef?: string;
   readonly planTtlMinutes?: number;
   readonly ephemeralStaging: boolean;
   readonly overrides: ConfigOverrides;
@@ -98,7 +99,7 @@ Usage:
   zui-webos artifact fetch <owner/repo> <tag> <artifact-id> [--json]
   zui-webos artifact cache list [--json]
   zui-webos artifact cache verify <sha256> [--json]
-  zui-webos release staging prepare <artifact-id> <path.ipk> <source-repository-path> <source-commit> <release-id> [--json]
+  zui-webos release staging prepare <artifact-id> <path.ipk> <source-repository-path> <source-commit> <release-id> [--source-ref origin/<branch>] [--json]
   zui-webos release staging stage-input <artifact-id> <path.ipk> [--json]
   zui-webos release staging verify <bundle-directory> [--json]
   zui-webos release staging upload <bundle-directory> --approve <release-id> [--json]
@@ -132,6 +133,7 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
   let app: string | undefined;
   let save: string | undefined;
   let approve: string | undefined;
+  let sourceRef: string | undefined;
   let planTtlMinutes: number | undefined;
   let ephemeralStaging = false;
   let device: string | undefined;
@@ -164,6 +166,18 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
         break;
       case "--approve":
         approve = optionValue(args, index, value);
+        index += 1;
+        break;
+      case "--source-ref":
+        sourceRef = optionValue(args, index, value);
+        if (
+          !/^origin\/[A-Za-z0-9][A-Za-z0-9/_.-]*$/u.test(sourceRef) ||
+          sourceRef.includes("..")
+        )
+          throw new PlatformError(
+            "INVALID_ARGUMENT",
+            "--source-ref requires an explicit origin branch ref.",
+          );
         index += 1;
         break;
       case "--plan-ttl-minutes":
@@ -212,6 +226,7 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     ...(app === undefined ? {} : { app }),
     ...(save === undefined ? {} : { save }),
     ...(approve === undefined ? {} : { approve }),
+    ...(sourceRef === undefined ? {} : { sourceRef }),
     ...(planTtlMinutes === undefined ? {} : { planTtlMinutes }),
     ephemeralStaging,
     overrides: {
@@ -564,6 +579,9 @@ async function execute(args: readonly string[]): Promise<number> {
           sourceRepositoryPath,
           sourceCommit,
           releaseId,
+          ...(parsed.sourceRef === undefined
+            ? {}
+            : { expectedRef: parsed.sourceRef }),
           signer: await new StagingKeyStore().unlock(passphrase),
         });
         emit(

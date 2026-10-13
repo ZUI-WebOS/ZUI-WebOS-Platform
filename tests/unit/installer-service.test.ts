@@ -109,7 +109,12 @@ class FakeAdapter implements InstallerAdapter {
 }
 
 async function setup(
-  options: { appId?: string; version?: string; now?: Date } = {},
+  options: {
+    appId?: string;
+    version?: string;
+    now?: Date;
+    installedVersion?: string;
+  } = {},
 ) {
   const appId = options.appId ?? "com.zui.webos.youtube.staging";
   const version = options.version ?? "0.8.4";
@@ -176,7 +181,7 @@ async function setup(
   const plan = createInstallationPlan({
     package: inspection,
     registry,
-    inventory: inventory(),
+    inventory: inventory("tv", options.installedVersion ?? null),
     connectionStatus: "reachable",
     artifactVerification: verification,
     signedDistributionTrusted: true,
@@ -186,6 +191,62 @@ async function setup(
 }
 
 describe("approval-gated installer", () => {
+  it("verifies an in-place UPGRADE and persists previous/target identity", async () => {
+    const { plan, release } = await setup({
+      version: "0.8.5",
+      installedVersion: "0.8.4",
+    });
+    expect(plan.comparison.versionRelation).toBe("UPGRADE");
+    expect(plan.policyDecision).toBe("ALLOW_WITH_APPROVAL");
+    const adapter = new FakeAdapter(
+      inventory("tv", "0.8.4"),
+      inventory("tv", "0.8.5"),
+    );
+    const receipts = new MemoryReceiptStore();
+    const service = new InstallerService(
+      adapter,
+      receipts,
+      () => new Date("2026-10-02T00:01:00.000Z"),
+    );
+    await service.execute(plan, plan.planDigest, [release], {
+      origin: "TV_STORE",
+      catalogIdentity: {
+        productId: "zui-youtube-webos",
+        releaseId: "youtube-staging-0.8.5",
+        artifactId: "youtube-0.8.5-staging",
+      },
+    });
+    expect(adapter.installs).toBe(1);
+    expect(receipts.receipts[0]).toMatchObject({
+      origin: "TV_STORE",
+      previousVersion: "0.8.4",
+      targetVersion: "0.8.5",
+      relation: "UPGRADE",
+      result: "SUCCESS",
+      postInstallVerified: true,
+      productId: "zui-youtube-webos",
+      releaseId: "youtube-staging-0.8.5",
+      artifactId: "youtube-0.8.5-staging",
+    });
+    expect(JSON.stringify(receipts.receipts[0])).not.toMatch(
+      /sessionToken|pairingCode|privateKey|passphrase/iu,
+    );
+  });
+  it("aborts UPGRADE if the installed version changes after approval", async () => {
+    const { plan, release } = await setup({
+      version: "0.8.5",
+      installedVersion: "0.8.4",
+    });
+    const adapter = new FakeAdapter(inventory("tv", "0.8.5"));
+    await expect(
+      new InstallerService(
+        adapter,
+        new MemoryReceiptStore(),
+        () => new Date("2026-10-02T00:01:00.000Z"),
+      ).execute(plan, plan.planDigest, [release]),
+    ).rejects.toMatchObject({ code: "PLAN_STALE" });
+    expect(adapter.installs).toBe(0);
+  });
   it("allows an exact current pinned staging plan and writes a verified receipt", async () => {
     const { plan, release } = await setup();
     const adapter = new FakeAdapter(inventory());

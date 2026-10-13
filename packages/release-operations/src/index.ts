@@ -229,6 +229,15 @@ export class GitSourceRepositoryVerifier implements SourceRepositoryVerifier {
         "SOURCE_COMMIT_INVALID",
         "Source commit must be an explicit lowercase 40-character SHA.",
       );
+    if (
+      input.expectedRef !== undefined &&
+      (!/^origin\/[A-Za-z0-9][A-Za-z0-9/_.-]*$/u.test(input.expectedRef) ||
+        input.expectedRef.includes(".."))
+    )
+      throw new PlatformError(
+        "SOURCE_COMMIT_INVALID",
+        "Expected source ref must name an explicit origin branch.",
+      );
     const options = { cwd: input.path, windowsHide: true } as const;
     const [{ stdout: status }, { stdout: head }, { stdout: remote }] =
       await Promise.all([
@@ -421,6 +430,7 @@ export class StagingReleasePipeline {
     readonly artifactPath: string;
     readonly sourceRepositoryPath: string;
     readonly sourceCommit: string;
+    readonly expectedRef?: string;
     readonly releaseId: string;
     readonly signer: NodeReleaseSigner;
     readonly now?: Date;
@@ -457,6 +467,9 @@ export class StagingReleasePipeline {
       path: input.sourceRepositoryPath,
       expectedRepository: product.repository,
       sourceCommit: input.sourceCommit,
+      ...(input.expectedRef === undefined
+        ? {}
+        : { expectedRef: input.expectedRef }),
     });
     const inspection = await inspectIpk(input.artifactPath);
     const app =

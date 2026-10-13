@@ -59,6 +59,12 @@ pnpm exec zui-webos release staging prepare `
 
 The command blocks dirty source state, wrong origin/ref/HEAD, production metadata, artifact hash/size/App-ID/version mismatch, inactive keys, and existing local bundle identity. The bundle is written outside Git under `%USERPROFILE%\.zui-webos\releases\staging\<release-id>\` by default and contains the three upload assets plus local verification/report metadata.
 
+For an isolated staging acceptance branch, pass
+`--source-ref origin/staging/update-acceptance-0.8.5`. The default remains
+`origin/main`. The branch must already be pushed/fetched and the clean exact
+source HEAD must be reachable from that origin ref. This changes the expected
+ref, not the registered repository, source SHA, staging policy or signing path.
+
 Verify independently:
 
 ```powershell

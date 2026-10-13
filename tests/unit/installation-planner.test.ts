@@ -113,6 +113,22 @@ describe("installation planner", () => {
     expect(compareVersions("2.0.0", "1.9.9")).toBe("DOWNGRADE");
     expect(compareVersions("1.0", "1.0.1")).toBe("UNKNOWN");
   });
+  it("blocks a signed staging downgrade from 0.8.5 to 0.8.4", () => {
+    const result = createInstallationPlan({
+      package: packageInspection("com.zui.webos.youtube.staging", "0.8.4"),
+      registry,
+      inventory: inventory("com.zui.webos.youtube.staging", "0.8.5"),
+      connectionStatus: "reachable",
+      artifactVerification: { ...pinned("staging"), expectedVersion: "0.8.4" },
+      signedDistributionTrusted: true,
+    });
+    expect(result.comparison.versionRelation).toBe("DOWNGRADE");
+    expect(result.policyDecision).toBe("BLOCK");
+    expect(result.executable).toBe(false);
+    expect(result.riskFlags).toContainEqual(
+      expect.objectContaining({ code: "DOWNGRADE", severity: "BLOCK" }),
+    );
+  });
 
   it("reports a package as not installed", () => {
     expect(

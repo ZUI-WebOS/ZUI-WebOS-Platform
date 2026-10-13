@@ -187,6 +187,25 @@ describe("operational staging key store", () => {
 });
 
 describe("staging release pipeline", () => {
+  it("forwards an explicit acceptance branch to the existing source verifier", async () => {
+    const fixture = await releaseFixture();
+    let verifiedRef: string | undefined;
+    const pipeline = new StagingReleasePipeline(
+      {
+        verify: async (input) => {
+          verifiedRef = input.expectedRef;
+        },
+      },
+      await mkdtemp(join(tmpdir(), "zui-ref-bundle-")),
+    );
+    const prepared = await pipeline.prepare({
+      ...fixture.input,
+      expectedRef: "origin/staging/update-acceptance-0.8.5",
+    });
+    roots.push(prepared.directory);
+    expect(verifiedRef).toBe("origin/staging/update-acceptance-0.8.5");
+    expect(prepared.manifest.sourceCommit).toBe(fixture.input.sourceCommit);
+  });
   it("stages pinned bytes under their digest and refuses inconsistent existing data", async () => {
     const fixture = await releaseFixture();
     const inputRoot = await mkdtemp(join(tmpdir(), "zui-release-input-test-"));
@@ -363,6 +382,23 @@ describe("source commit binding", () => {
       sourceCommit: commit,
     };
     await expect(verifier.verify(input)).resolves.toBeUndefined();
+    await run([
+      "update-ref",
+      "refs/remotes/origin/staging/update-acceptance-0.8.5",
+      commit,
+    ]);
+    await expect(
+      verifier.verify({
+        ...input,
+        expectedRef: "origin/staging/update-acceptance-0.8.5",
+      }),
+    ).resolves.toBeUndefined();
+    await expect(
+      verifier.verify({ ...input, expectedRef: "origin/missing-branch" }),
+    ).rejects.toMatchObject({ code: "SOURCE_COMMIT_INVALID" });
+    await expect(
+      verifier.verify({ ...input, expectedRef: "--all" }),
+    ).rejects.toMatchObject({ code: "SOURCE_COMMIT_INVALID" });
     await expect(
       verifier.verify({ ...input, sourceCommit: "b".repeat(40) }),
     ).rejects.toMatchObject({ code: "SOURCE_COMMIT_INVALID" });

@@ -39,6 +39,26 @@ LIVE catalog has a separate five-minute display cache. That cache is never a mut
 
 The previous blocked attempt bypassed LIVE's resilient inventory path during mutation preflight. The fix puts the bounded fresh-read wrapper on that path. Original transport exit/stderr evidence was unavailable, so the precise underlying LG session failure is not retrospectively established. Fresh acceptance succeeded on first inventory attempts; retry behavior is proven by regression tests, not by intentionally disrupting the TV.
 
+## Genuine staging UPDATE preparation
+
+The same planner/coordinator/service handles UPDATE only when fresh inventory
+produces `UPGRADE / ALLOW_WITH_APPROVAL`. An installed-version change aborts the
+approved plan rather than silently replanning. Store candidate 0.3.2 fixes
+update-specific EN/TR review, Current version/New version, Update now/Şimdi
+güncelle, progress and result copy; Cancel-first focus remains unchanged.
+
+Receipts now include `previousVersion`, `targetVersion`, `relation`, and the
+backend-resolved product/release/artifact IDs when supplied by the coordinator.
+Older receipts remain readable; no receipt is rewritten. Pairing/session tokens
+and private paths are not added. The newer YouTube package comes from an isolated
+staging version overlay on a dedicated source branch, not a production version
+bump or a patched IPK. Release prepare accepts `--source-ref origin/<branch>`
+while retaining clean exact HEAD, registry-origin agreement and ref reachability.
+
+Hardware UPDATE acceptance passed, including the quota-resume Back/focus and
+EN/TR checks; see the
+[acceptance report](../development/TV_STORE_STAGING_UPDATE_REPORT_2026-10-05.md).
+
 ## Security and failure semantics
 
 Requests use logical IDs, strict JSON shapes, bounded bodies, bearer sessions, expiry, single-use intents and exact `Origin: null` handling for the webOS `file://` client. These controls are not TLS or strong LAN authentication: the current staging service assumes a trusted private LAN and trusted PC/TV. Do not expose it to the Internet or an untrusted/shared network. No-Origin operator requests exist; CORS is not an authentication boundary.

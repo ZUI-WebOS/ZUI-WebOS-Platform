@@ -116,6 +116,17 @@ describe("device alias validation", () => {
 
 describe("CLI argument parsing", () => {
   it("accepts the standard option delimiter passed by package runners", () => {
+    expect(
+      parseArguments([
+        "release",
+        "staging",
+        "prepare",
+        "--source-ref",
+        "origin/staging/update-acceptance-0.8.5",
+      ]),
+    ).toMatchObject({ sourceRef: "origin/staging/update-acceptance-0.8.5" });
+    expect(() => parseArguments(["--source-ref", "--all"])).toThrow();
+    expect(() => parseArguments(["--source-ref", "HEAD"])).toThrow();
     expect(parseArguments(["--", "devices", "list", "--json"])).toMatchObject({
       command: ["devices", "list"],
       json: true,

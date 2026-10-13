@@ -313,6 +313,58 @@ async function coordinator(
 }
 
 describe("TV Store staging install coordinator", () => {
+  it("binds an UPGRADE intent to current/target versions and consumes approval once", async () => {
+    const { service, installs } = await coordinator({
+      inventory: inventory("0.8.3"),
+    });
+    const session = service.pair("12345678");
+    const intent = await service.createIntent(
+      session.sessionToken,
+      selection(),
+    );
+    expect(intent).toMatchObject({
+      currentVersion: "0.8.3",
+      targetVersion: "0.8.4",
+      action: "UPDATE",
+      trustDecision: "SIGNED_TRUSTED",
+    });
+    service.approve(session.sessionToken, intent.intentId);
+    await vi.waitFor(() =>
+      expect(service.status(session.sessionToken, intent.intentId).state).toBe(
+        "SUCCEEDED",
+      ),
+    );
+    expect(() =>
+      service.approve(session.sessionToken, intent.intentId),
+    ).toThrow();
+    expect(installs).toHaveLength(1);
+  });
+  it("does not retry a failed UPGRADE execution or permit approval replay", async () => {
+    const execute = vi
+      .fn()
+      .mockRejectedValue(
+        new PlatformError("INSTALL_FAILED", "mock update failure"),
+      );
+    const { service } = await coordinator({
+      inventory: inventory("0.8.3"),
+      installer: { execute },
+    });
+    const session = service.pair("12345678");
+    const intent = await service.createIntent(
+      session.sessionToken,
+      selection(),
+    );
+    service.approve(session.sessionToken, intent.intentId);
+    await vi.waitFor(() =>
+      expect(
+        service.status(session.sessionToken, intent.intentId),
+      ).toMatchObject({ state: "FAILED", errorCode: "INSTALL_FAILED" }),
+    );
+    expect(() =>
+      service.approve(session.sessionToken, intent.intentId),
+    ).toThrow();
+    expect(execute).toHaveBeenCalledOnce();
+  });
   it.each(["com.zui.player", "youtube.leanback.v4"])(
     "hard-blocks protected production identity %s even when metadata claims staging",
     async (appId) => {

@@ -10,6 +10,7 @@ import {
   validatePlanDigest,
   type InstallationPlanV2,
   type InstallationRisk,
+  type VersionRelation,
 } from "@zui-webos/installation-planner";
 import { inspectIpk } from "@zui-webos/package-inspector";
 import { platformDataRoot } from "@zui-webos/runtime-paths";
@@ -48,6 +49,12 @@ export interface InstallationReceipt {
   readonly result: "SUCCESS" | "FAILED";
   readonly rollback: RollbackAvailability;
   readonly origin?: "TV_STORE";
+  readonly previousVersion?: string | null;
+  readonly targetVersion?: string;
+  readonly relation?: VersionRelation;
+  readonly productId?: string;
+  readonly releaseId?: string;
+  readonly artifactId?: string;
 }
 export type InstallationPhase =
   | "VERIFYING_PACKAGE"
@@ -58,6 +65,11 @@ export type InstallationPhase =
 export interface InstallationExecutionOptions {
   readonly origin?: "TV_STORE";
   readonly onPhase?: (phase: InstallationPhase) => void;
+  readonly catalogIdentity?: {
+    readonly productId: string;
+    readonly releaseId: string;
+    readonly artifactId: string;
+  };
 }
 export interface InstallExecutionResult {
   readonly commandAccepted: boolean;
@@ -201,6 +213,18 @@ export class InstallerService {
         "Only approved, policy-allowed staging plans can execute.",
       );
 
+    const receiptContext = {
+      previousVersion: plan.installedState.version,
+      targetVersion: plan.artifact.version,
+      relation: plan.comparison.versionRelation,
+      ...(options.catalogIdentity === undefined
+        ? {}
+        : {
+            productId: options.catalogIdentity.productId,
+            releaseId: options.catalogIdentity.releaseId,
+            artifactId: options.catalogIdentity.artifactId,
+          }),
+    };
     options.onPhase?.("VERIFYING_PACKAGE");
     const inspection = await inspectIpk(plan.artifact.path);
     const manifest =
@@ -249,6 +273,7 @@ export class InstallerService {
     const commandAccepted = !command.timedOut && command.exitCode === 0;
     if (!commandAccepted) {
       const failedReceipt: InstallationReceipt = {
+        ...receiptContext,
         receiptVersion: 1,
         timestamp: this.now().toISOString(),
         deviceAlias: plan.deviceAlias,
@@ -281,6 +306,7 @@ export class InstallerService {
       );
     } catch {
       const receiptPath = await this.receipts.write({
+        ...receiptContext,
         receiptVersion: 1,
         timestamp: this.now().toISOString(),
         deviceAlias: plan.deviceAlias,
@@ -318,6 +344,7 @@ export class InstallerService {
       ? "ROLLBACK_NOT_REQUIRED"
       : "ROLLBACK_UNAVAILABLE";
     const receipt: InstallationReceipt = {
+      ...receiptContext,
       receiptVersion: 1,
       timestamp: this.now().toISOString(),
       deviceAlias: plan.deviceAlias,

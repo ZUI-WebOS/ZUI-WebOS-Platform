@@ -140,6 +140,14 @@ For staging operators, see [Staging Release Runbook](docs/operations/STAGING_REL
 
 ## Roadmap
 
+Genuine staging UPDATE preparation is tracked in the
+[2026-10-05 report](docs/development/TV_STORE_STAGING_UPDATE_REPORT_2026-10-05.md).
+Store 0.3.2 was deployed for necessary UPDATE-specific copy. The signed staging
+0.8.4 → 0.8.5 update has a verified successful real-TV receipt and current
+UP_TO_DATE inventory/catalog state. The remaining real-TV Back/focus and EN/TR
+checks passed on quota resume: TV_STORE_STAGING_UPDATE_COMPLETE. See the report
+for evidence limitations and remote CI verification.
+
 1. DevMode Keeper CLI and rootless device core.
 2. Local Device Manager and verified installer.
 3. Signed catalog, release/package registry, and update intelligence.

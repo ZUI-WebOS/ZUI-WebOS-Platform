@@ -49,6 +49,147 @@ const intent = {
 };
 
 describe("TV Store UI", () => {
+  it.each(["en", "tr"] as const)(
+    "uses %s UPDATE copy through review, progress and success",
+    async (locale) => {
+      localStorage.setItem("zui-tv-store-locale", locale);
+      const updateIntent = {
+        ...intent,
+        currentVersion: "0.8.4",
+        targetVersion: "0.8.5",
+        action: "UPDATE" as const,
+      };
+      const catalog = {
+        ...liveEligibleCatalog(),
+        products: liveEligibleCatalog().products.map((p) =>
+          p.appId === intent.appId
+            ? {
+                ...p,
+                installed: true,
+                installedVersion: "0.8.4",
+                availableVersion: "0.8.5",
+                updateStatus: "UPDATE_AVAILABLE" as const,
+              }
+            : p,
+        ),
+      };
+      vi.mocked(client.loadCatalog).mockResolvedValue(catalog);
+      vi.spyOn(client, "pairInstallService").mockResolvedValue({
+        sessionToken: "s".repeat(43),
+        expiresAt: intent.expiresAt,
+        deviceAlias: "tv",
+        scope: "STAGING_INSTALL",
+      });
+      vi.spyOn(client, "createInstallIntent").mockResolvedValue(updateIntent);
+      vi.spyOn(client, "approveInstallIntent").mockResolvedValue({
+        ...updateIntent,
+        state: "RUNNING",
+        phase: "INSTALLING",
+        result: null,
+        errorCode: null,
+      });
+      let complete = false;
+      vi.spyOn(client, "loadInstallStatus").mockImplementation(async () =>
+        complete
+          ? {
+              ...updateIntent,
+              state: "SUCCEEDED",
+              phase: "COMPLETE",
+              result: {
+                installedAppId: intent.appId,
+                installedVersion: "0.8.5",
+                postInstallVerified: true,
+              },
+              errorCode: null,
+            }
+          : {
+              ...updateIntent,
+              state: "RUNNING",
+              phase: "INSTALLING",
+              result: null,
+              errorCode: null,
+            },
+      );
+      render(<App />);
+      const identity = await screen.findByText(intent.appId);
+      fireEvent.click(identity.closest("button")!);
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: locale === "en" ? "Update" : "Güncelle",
+        }),
+      );
+      fireEvent.change(
+        screen.getByLabelText(
+          locale === "en"
+            ? "Eight-digit pairing code"
+            : "Sekiz haneli eşleştirme kodu",
+        ),
+        { target: { value: "12345678" } },
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: locale === "en" ? "Pair securely" : "Güvenli eşleştir",
+        }),
+      );
+      await waitFor(() =>
+        expect(document.activeElement?.getAttribute("data-focus-id")).toBe(
+          "approval-cancel",
+        ),
+      );
+      expect(
+        screen.getByText(locale === "en" ? "Current version" : "Mevcut sürüm"),
+      ).toBeTruthy();
+      expect(
+        screen.getByText(locale === "en" ? "New version" : "Yeni sürüm"),
+      ).toBeTruthy();
+      expect(screen.getByText("0.8.4")).toBeTruthy();
+      expect(screen.getByText("0.8.5")).toBeTruthy();
+      expect(
+        screen.queryByRole("button", { name: /Install now|Şimdi yükle/u }),
+      ).toBeNull();
+      fireEvent.keyDown(window, { key: "ArrowRight" });
+      const confirm = screen.getByRole("button", {
+        name: locale === "en" ? "Update now" : "Şimdi güncelle",
+      });
+      expect(confirm).toBe(document.activeElement);
+      fireEvent.click(confirm);
+      expect(
+        await screen.findByText(
+          locale === "en"
+            ? "Updating staging application"
+            : "Staging uygulaması güncelleniyor",
+        ),
+      ).toBeTruthy();
+      complete = true;
+      vi.mocked(client.loadCatalog).mockResolvedValue({
+        ...catalog,
+        products: catalog.products.map((p) =>
+          p.appId === intent.appId
+            ? {
+                ...p,
+                installedVersion: "0.8.5",
+                updateStatus: "UP_TO_DATE" as const,
+              }
+            : p,
+        ),
+      });
+      expect(
+        await screen.findByText(
+          locale === "en" ? "Updated successfully" : "Başarıyla güncellendi",
+        ),
+      ).toBeTruthy();
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: locale === "en" ? "Back to product" : "Ürüne dön",
+        }),
+      );
+      expect(
+        screen.queryByRole("button", {
+          name: locale === "en" ? "Update" : "Güncelle",
+        }),
+      ).toBeNull();
+    },
+  );
   beforeEach(() => {
     localStorage.clear();
     vi.spyOn(client, "loadCatalog").mockResolvedValue(mockTvStoreCatalog);

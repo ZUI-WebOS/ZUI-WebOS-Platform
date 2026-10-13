@@ -93,4 +93,9 @@ Vite emits an already-minified relative-path web bundle. `ares-package -n` avoid
 
 ## Separate installation boundary
 
-The catalog API has not been widened. `/api/tv-store-install/v1` runs in a separately armed PC process with an explicit device, private interface, short-lived pairing and single-use approval. [Real-TV first-install acceptance](../development/TV_STORE_STAGING_INSTALL_REPORT_2026-10-05.md) covers exact trust, fresh inventory, Cancel initial focus, one user-approved installation, post-install verification and protected identities. Display caching is never reused for mutation safety checks. Genuine newer-version UPDATE is the next hardware gate.
+Store 0.3.2 uses update-specific bilingual copy and is installed on the acceptance
+TV. A signed 0.8.4 → 0.8.5 staging update has succeeded with a verified receipt,
+fresh inventory and UP_TO_DATE catalog. Remaining real-TV Back/focus and EN/TR
+checks passed on quota resume. See the [update report](../development/TV_STORE_STAGING_UPDATE_REPORT_2026-10-05.md).
+
+The catalog API has not been widened. `/api/tv-store-install/v1` runs in a separately armed PC process with an explicit device, private interface, short-lived pairing and single-use approval. [Real-TV first-install acceptance](../development/TV_STORE_STAGING_INSTALL_REPORT_2026-10-05.md) covers exact trust, fresh inventory, Cancel initial focus, one user-approved installation, post-install verification and protected identities. Display caching is never reused for mutation safety checks. Genuine newer-version UPDATE is also covered by the update report.

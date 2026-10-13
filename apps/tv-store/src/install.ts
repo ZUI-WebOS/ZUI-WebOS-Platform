@@ -597,6 +597,11 @@ export class StagingInstallCoordinator {
         intent.releases,
         {
           origin: "TV_STORE",
+          catalogIdentity: {
+            productId: intent.productId,
+            releaseId: intent.releaseId,
+            artifactId: intent.artifactId,
+          },
           onPhase: (phase) => {
             intent.phase = phase;
           },
